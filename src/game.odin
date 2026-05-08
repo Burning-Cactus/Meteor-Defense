@@ -26,7 +26,7 @@ start_game :: proc() {
 	}
 	state.comet = Entity{
 		pos = {400, 300},
-		size = {200, 200}
+		size = {200, 200},
 	}
 	state.cometHealth = 100
 	append(&state.meteors, Meteor{
