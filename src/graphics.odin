@@ -2,10 +2,15 @@ package game
 
 import rl "vendor:raylib"
 
-draw_screen :: proc(state: GameState) {
+draw_game_screen :: proc(state: GameState) {
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.BLACK)
-	rl.DrawRectangleV(state.comet, {200, 200}, rl.WHITE)
+	// This is just for verifying that collision checks work. Feel free to rip out this if statement for the comet color.
+	if check_collision(state.comet, state.player) {
+		draw_entity(state.comet, rl.RED)
+	} else {
+		draw_entity(state.comet, rl.WHITE)
+	}
 	draw_entity(state.player, rl.WHITE)
 
 	meteorCount := len(state.meteors)
@@ -24,6 +29,7 @@ draw_screen :: proc(state: GameState) {
 draw_entity :: proc(entity: Entity, color: rl.Color) {
 	offset := entity.size / 2
 	rl.DrawRectangleV(entity.pos - offset, entity.size, color)
+	rl.DrawPixelV(entity.pos, rl.BLUE)
 }
 
 draw_title_screen :: proc() {
