@@ -12,6 +12,8 @@ init :: proc() {
 	rl.InitWindow(1280, 720, "Meteor Defense")
 	rl.SetTargetFPS(60)
 	currentScreen = .Title
+	// Disable quiting with esc key.
+	rl.SetExitKey(.KEY_NULL)
 }
 
 start_game :: proc() {
@@ -91,6 +93,8 @@ update :: proc() {
 Screen :: enum{Title, Game}
 
 game_loop :: proc() {
+	if rl.IsKeyPressed(.ESCAPE) do state.paused = !state.paused
+	if state.paused do return
 	delta := rl.GetFrameTime()
 	player := &state.player
 
@@ -132,7 +136,6 @@ game_loop :: proc() {
 	for i := projectileCount - 1; i >= 0; i -= 1 {
 		if !state.projectiles[i].alive do unordered_remove(&state.projectiles, i)
 	}
-
 }
 
 check_collision :: proc(a: Entity, b: Entity) -> bool {
