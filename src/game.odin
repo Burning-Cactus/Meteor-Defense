@@ -5,6 +5,8 @@ import "core:c"
 import "core:fmt"
 import "core:math"
 
+Vec2 :: [2]f32
+
 run: bool
 laserSound: rl.Sound
 rockDestroyedSound: rl.Sound
@@ -28,7 +30,7 @@ start_game :: proc() {
 
 GameState :: struct {
 	player: Entity,
-	lookVec: [2]f32,
+	lookVec: Vec2,
 	meteors: [dynamic]Meteor,
 	projectiles: [dynamic]Entity,
 	comet: Entity,
@@ -40,6 +42,7 @@ GameState :: struct {
 
 	paused: bool,
 	buildMode: bool,
+	buildCursor: Vec2,
 }
 
 state: GameState = {
@@ -92,12 +95,17 @@ game_loop :: proc() {
 		state.buildMode = !state.buildMode
 	}
 
+	if state.buildMode {
+		mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
+		state.buildCursor = find_intersection_point_on_entity(mousePos, state.comet)
+	}
+
 	player := &state.player
 
 	spawnTimer -= delta
 	if spawnTimer <= 0 {
 		// Spawn meteors
-		spawners := [3][2]f32{
+		spawners := [3]Vec2{
 			{50, 50},
 			{700, 100},
 			{600, 700},
@@ -174,7 +182,7 @@ handle_input :: proc() {
 	if rl.IsKeyDown(.W) do player.velocity.y -= playerSpeed
 	if rl.IsKeyDown(.S) do player.velocity.y += playerSpeed
 	if rl.IsMouseButtonPressed(.LEFT) {
-		mousePos := [2]f32{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
+		mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
 		state.lookVec = get_normalized_vector_facing_target(player.pos, mousePos)
 		bulletSpeed :: 500
 		append(&state.projectiles, Entity{
@@ -188,7 +196,22 @@ handle_input :: proc() {
 
 }
 
-get_normalized_vector_facing_target :: proc(base: [2]f32, target: [2]f32) -> [2]f32 {
+find_intersection_point_on_entity :: proc(startPos: Vec2, target: Entity) -> (collisionPoint: Vec2) {
+	rayVec := target.pos - startPos
+	rayLength := math.sqrt(rayVec.x * rayVec.x + rayVec.y * rayVec.y)
+	rayNormal := rayVec / rayLength
+	result: Vec2
+	switch shape in target.shape {
+	case Rect:
+		fmt.printf("Not implemented!\n")
+	case Circle:
+		dist := rayLength - shape.radius
+		result = startPos + rayNormal * dist
+	}
+	return result
+}
+
+get_normalized_vector_facing_target :: proc(base: Vec2, target: Vec2) -> Vec2 {
 	difference := target - base
 	distance := math.sqrt(difference.x * difference.x + difference.y * difference.y)
 	return difference / distance

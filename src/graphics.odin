@@ -38,7 +38,7 @@ draw_title_screen :: proc() {
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.BLACK)
 	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
-	midPoint := cast([2]f32) screenSize / 2
+	midPoint := cast(Vec2) screenSize / 2
 	rl.DrawRectangleV(midPoint - {300,100}, {600,200}, rl.GRAY)
 
 	rl.GuiSetStyle(.LABEL, i32(rl.GuiControlProperty.TEXT_COLOR_NORMAL), i32(rl.ColorToInt(rl.WHITE)))
@@ -53,8 +53,6 @@ draw_title_screen :: proc() {
 
 // TODO: Use a ray cast to snap the tower to the comet's edges. I'm too tired to process this right now.
 test_draw_build_mode :: proc(state: GameState) {
-	//pos := state.comet.pos
-	//radius := state.comet.shape.(Circle).radius
-
-	//mousePos := [2]f32{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
+	buildPos := state.buildCursor
+	rl.DrawRectangleLinesEx({buildPos.x - 8, buildPos.y - 8, 16, 16}, 1.5, rl.GREEN)
 }

@@ -4,7 +4,7 @@ import rl "vendor:raylib"
 line_thickness :: 1.5
 
 Rect :: struct {
-	size: [2]f32,
+	size: Vec2,
 }
 Circle :: struct {
 	radius: f32,
@@ -12,15 +12,15 @@ Circle :: struct {
 Shape :: union { Rect, Circle }
 Entity :: struct {
 	label : string,
-	pos: [2]f32,
-	velocity: [2]f32,
+	pos: Vec2,
+	velocity: Vec2,
 	shape: Shape,
 	rot: f32,
 	alive: bool,
 }
 
 @(private)
-check_collision_rects :: proc(a: Rect, a_pos: [2]f32 , b: Rect, b_pos: [2]f32) -> bool {
+check_collision_rects :: proc(a: Rect, a_pos: Vec2, b: Rect, b_pos: Vec2) -> bool {
 	a_nw := a_pos - (a.size / 2)
 	b_nw := b_pos - (b.size / 2)
 	a_se := a_pos + (a.size / 2)
@@ -39,13 +39,13 @@ sqr :: proc(f:f32)  -> f32 {
 }
 
 @private
-dist_squared :: proc(a:[2]f32, b:[2]f32) -> f32 {
+dist_squared :: proc(a:Vec2, b:Vec2) -> f32 {
 	x := a.x - b.x
 	y := a.y - b.y
 	return x*x + y*y
 }
 @(private)
-check_collision_circles :: proc(a: Circle, a_pos: [2]f32 , b: Circle, b_pos: [2]f32) -> bool {
+check_collision_circles :: proc(a: Circle, a_pos: Vec2 , b: Circle, b_pos: Vec2) -> bool {
 	return dist_squared(a_pos, b_pos) < sqr(a.radius + b.radius)
 }
 
