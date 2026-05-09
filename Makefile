@@ -1,11 +1,17 @@
-.PHONY: web web-debug run serve clean
+ODINFLAGS := #-vet -strict-style
+CONSIDER_CONTENTS := assets src
 
-ODINFLAGS := -vet -strict-style
+default: build/desktop/game
 
+# lil hack to make Make consider the contents of directory prereqs
+contents = $(shell find $1 -type f)
+.SECONDEXPANSION:
+${CONSIDER_CONTENTS}: $$(call contents,$$@)
+	touch $@
 
-%/assets:
+%/assets: assets
 	mkdir -p $@
-	cp -R --no-target-directory assets $@
+	cp -R --no-target-directory $< $@
 
 build/desktop/game: src build/desktop/assets
 	odin build $</main_desktop ${ODINFLAGS} -out:$@
@@ -24,3 +30,5 @@ serve: web
 
 clean:
 	rm -rf build/
+
+.PHONY: web web-debug run serve clean
