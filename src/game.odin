@@ -13,30 +13,17 @@ init :: proc() {
 	run = true
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
 	rl.InitWindow(1280, 720, "Meteor Defense")
-	rl.SetTargetFPS(60)
 	currentScreen = .Title
 	// Disable quiting with esc key.
 	rl.SetExitKey(.KEY_NULL)
 
 	rl.InitAudioDevice()
-	laserSound = rl.LoadSound("assets/Laser.wav")
-	rockDestroyedSound = rl.LoadSound("assets/Rock_Destroyed.wav")
+	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
+	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
 }
 
 start_game :: proc() {
 	currentScreen = .Game
-	state = GameState{}
-	state.player = Entity{
-		pos = {700, 600},
-		size = {32, 32},
-		alive = true,
-	}
-	state.comet = Entity{
-		pos = {400, 300},
-		size = {200, 200},
-	}
-	state.cometHealth = 20
-	state.timeRemaining = 30
 }
 
 GameState :: struct {
@@ -54,17 +41,23 @@ GameState :: struct {
 	paused: bool,
 	buildMode: bool,
 }
-state: GameState
-spawnTimer: f32
 
-// Normally I would use a fat struct, but TD games can sometimes simulate a massive number of enemies. We'll see what we need as we go.
-Entity :: struct {
-	pos: [2]f32,
-	velocity: [2]f32,
-	size: [2]f32,
-	rot: f32, // Rotation will be necessary in the future for collision checking and drawing, though raylib doesn't seem to have built-in support for rotating shapes.
-	alive: bool,
+state: GameState = {
+	player = Entity{
+		label = "jelly",
+		pos = {700, 600},
+		shape = Rect{32},
+		alive = true,
+	},
+	comet = Entity{
+		label = "comet",
+		pos = {400, 300},
+		shape = Circle{200},
+	},
+	cometHealth = 20,
+	timeRemaining = 30,
 }
+spawnTimer: f32
 
 // Different meteors will have different path strategies in the future.
 Meteor :: struct {
@@ -72,7 +65,7 @@ Meteor :: struct {
 }
 
 Screen :: enum{Title, Game}
-currentScreen: Screen
+currentScreen := Screen.Game
 // I'm thinking particles can be handled later with an arena.
 update :: proc() {
 	switch currentScreen {
@@ -107,14 +100,14 @@ game_loop :: proc() {
 		spawners := [3][2]f32{
 			{50, 50},
 			{700, 100},
-			{600, 700}
+			{600, 700},
 		}
 		for i in 0..<len(spawners) {
 			position := spawners[i]
 			append(&state.meteors, Meteor{
 				pos = position,
 				velocity = get_normalized_vector_facing_target(position, state.comet.pos) * 80,
-				size = {32, 32},
+				shape = Circle{32},
 				alive = true,
 			})
 		}
@@ -170,16 +163,6 @@ game_loop :: proc() {
 	}
 }
 
-check_collision :: proc(a: Entity, b: Entity) -> bool {
-	aPos := a.pos - (a.size / 2)
-	bPos := b.pos - (b.size / 2)
-	return (
-		aPos.x < bPos.x + b.size.x
-		&& aPos.x + a.size.x > bPos.x
-		&& aPos.y < bPos.y + b.size.y
-		&& aPos.y + a.size.y > bPos.y
-	)
-}
 
 handle_input :: proc() {
 	player := &state.player
@@ -197,7 +180,7 @@ handle_input :: proc() {
 		append(&state.projectiles, Entity{
 			pos = player.pos + state.lookVec * 30,
 			velocity = state.lookVec * bulletSpeed,
-			size = {12, 12},
+			shape = Circle {12},
 			alive = true,
 		})
 		rl.PlaySound(laserSound)

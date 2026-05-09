@@ -1,4 +1,4 @@
-ODINFLAGS := #-vet -strict-style
+ODINFLAGS := -vet -strict-style
 CONSIDER_CONTENTS := assets src
 
 default: build/desktop/game

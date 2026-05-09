@@ -34,14 +34,6 @@ draw_game_screen :: proc(state: GameState) {
 	rl.EndDrawing()
 }
 
-// Temporary procedure to draw placeholder entities. Their origin is at the center.
-@(private)
-draw_entity :: proc(entity: Entity, color: rl.Color) {
-	offset := entity.size / 2
-	rl.DrawRectangleV(entity.pos - offset, entity.size, color)
-	rl.DrawPixelV(entity.pos, rl.BLUE)
-}
-
 draw_title_screen :: proc() {
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.BLACK)
@@ -61,15 +53,8 @@ draw_title_screen :: proc() {
 
 // TODO: Use a ray cast to snap the tower to the comet's edges. I'm too tired to process this right now.
 test_draw_build_mode :: proc(state: GameState) {
-	comet := state.comet
-	pos := comet.pos
-	offset := comet.size / 2
-	// Vertices in counter-clockwise order
-	vertices := [4][2]f32{
-		{pos.x - offset.x, pos.y - offset.y},
-		{pos.x - offset.x, pos.y + offset.y},
-		{pos.x + offset.x, pos.y + offset.y},
-		{pos.x + offset.x, pos.y - offset.y},
-	}
-	mousePos := [2]f32{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
+	//pos := state.comet.pos
+	//radius := state.comet.shape.(Circle).radius
+
+	//mousePos := [2]f32{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
 }
