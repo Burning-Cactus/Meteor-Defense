@@ -21,6 +21,12 @@ draw_game_screen :: proc(state: GameState) {
 	for i in 0..<projectileCount {
 		draw_entity(state.projectiles[i], rl.GRAY)
 	}
+
+	if state.gameOver {
+		rl.DrawText("VICTORY", rl.GetScreenWidth() / 2 - 240, rl.GetScreenHeight() / 2 - 50, 64, rl.LIGHTGRAY)
+	} else {
+		rl.DrawText(rl.TextFormat("Time left: %.0f seconds", state.timeRemaining), rl.GetScreenWidth() - 240, 10, 20, rl.WHITE)
+	}
 	rl.EndDrawing()
 }
 

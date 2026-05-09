@@ -11,7 +11,7 @@ rockDestroyedSound: rl.Sound
 
 init :: proc() {
 	run = true
-	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT, })
+	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
 	rl.InitWindow(1280, 720, "Meteor Defense")
 	rl.SetTargetFPS(60)
 	currentScreen = .Title
@@ -54,6 +54,7 @@ start_game :: proc() {
 			velocity = {20, -3},
 			alive = true,
 		})
+	state.timeRemaining = 10
 }
 
 GameState :: struct {
@@ -64,7 +65,10 @@ GameState :: struct {
 	comet: Entity,
 	cometHealth: i32,
 
-	timeRemaining: i32,
+	gameTime: f64,
+	timeRemaining: f32,
+	gameOver: bool,
+
 	paused: bool,
 }
 state: GameState
@@ -101,17 +105,21 @@ update :: proc() {
 Screen :: enum{Title, Game}
 
 game_loop :: proc() {
+	delta := rl.GetFrameTime()
 	if rl.IsKeyPressed(.ESCAPE) do state.paused = !state.paused
 	if state.paused do return
-	delta := rl.GetFrameTime()
+	if state.gameOver {
+		state.gameTime += f64(delta)
+		return
+	}
 	player := &state.player
+
 
 	handle_input()
 	player.pos += player.velocity * delta
 
 	meteorCount := len(state.meteors)
 	projectileCount := len(state.projectiles)
-
 
 	// TODO: Use quadtrees to make collision checks cheaper
 	for i in 0..<projectileCount {
@@ -146,6 +154,12 @@ game_loop :: proc() {
 	// TODO: Define the boundaries of the map, and kill the bullets when they exit.
 	for i := projectileCount - 1; i >= 0; i -= 1 {
 		if !state.projectiles[i].alive do unordered_remove(&state.projectiles, i)
+	}
+
+	state.gameTime += f64(delta)
+	state.timeRemaining -= delta
+	if state.timeRemaining <= 0 {
+		state.gameOver = true
 	}
 }
 
