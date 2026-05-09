@@ -36,7 +36,7 @@ start_game :: proc() {
 		size = {200, 200},
 	}
 	state.cometHealth = 20
-	state.timeRemaining = 10
+	state.timeRemaining = 30
 }
 
 GameState :: struct {
@@ -52,6 +52,7 @@ GameState :: struct {
 	gameOver: bool,
 
 	paused: bool,
+	buildMode: bool,
 }
 state: GameState
 spawnTimer: f32
@@ -94,6 +95,10 @@ game_loop :: proc() {
 		state.gameTime += f64(delta)
 		return
 	}
+	if rl.IsKeyPressed(.ONE) {
+		state.buildMode = !state.buildMode
+	}
+
 	player := &state.player
 
 	spawnTimer -= delta
@@ -117,7 +122,6 @@ game_loop :: proc() {
 	}
 
 	// Handle entities
-
 	handle_input()
 	player.pos += player.velocity * delta
 
@@ -198,6 +202,7 @@ handle_input :: proc() {
 		})
 		rl.PlaySound(laserSound)
 	}
+
 }
 
 get_normalized_vector_facing_target :: proc(base: [2]f32, target: [2]f32) -> [2]f32 {
