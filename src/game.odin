@@ -6,14 +6,21 @@ import "core:fmt"
 import "core:math"
 
 run: bool
+laserSound: rl.Sound
+rockDestroyedSound: rl.Sound
+
 init :: proc() {
 	run = true
-	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
+	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT, })
 	rl.InitWindow(1280, 720, "Meteor Defense")
 	rl.SetTargetFPS(60)
 	currentScreen = .Title
 	// Disable quiting with esc key.
 	rl.SetExitKey(.KEY_NULL)
+
+	rl.InitAudioDevice()
+	laserSound = rl.LoadSound("assets/Laser.wav")
+	rockDestroyedSound = rl.LoadSound("assets/Rock_Destroyed.wav")
 }
 
 start_game :: proc() {
@@ -57,6 +64,7 @@ GameState :: struct {
 	comet: Entity,
 	cometHealth: i32,
 
+	timeRemaining: i32,
 	paused: bool,
 }
 state: GameState
@@ -130,7 +138,10 @@ game_loop :: proc() {
 
 	// Loop backwards to clear the array.
 	for i := meteorCount - 1; i >= 0; i -= 1 {
-		if !state.meteors[i].alive do unordered_remove(&state.meteors, i)
+		if !state.meteors[i].alive {
+			unordered_remove(&state.meteors, i)
+			rl.PlaySound(rockDestroyedSound)
+		}
 	}
 	// TODO: Define the boundaries of the map, and kill the bullets when they exit.
 	for i := projectileCount - 1; i >= 0; i -= 1 {
@@ -170,6 +181,7 @@ handle_input :: proc() {
 			size = {12, 12},
 			alive = true,
 		})
+		rl.PlaySound(laserSound)
 	}
 }
 
