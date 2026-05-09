@@ -35,25 +35,7 @@ start_game :: proc() {
 		pos = {400, 300},
 		size = {200, 200},
 	}
-	state.cometHealth = 100
-	append(&state.meteors, Meteor{
-			pos = {0, 100},
-			size = {32, 32},
-			velocity = {40, 0},
-			alive = true,
-		})
-	append(&state.meteors, Meteor{
-			pos = {0, 300},
-			size = {28, 28},
-			velocity = {20, 0},
-			alive = true,
-		})
-	append(&state.meteors, Meteor{
-			pos = {0, 500},
-			size = {24, 24},
-			velocity = {20, -3},
-			alive = true,
-		})
+	state.cometHealth = 20
 	state.timeRemaining = 10
 }
 
@@ -72,6 +54,7 @@ GameState :: struct {
 	paused: bool,
 }
 state: GameState
+spawnTimer: f32
 
 // Normally I would use a fat struct, but TD games can sometimes simulate a massive number of enemies. We'll see what we need as we go.
 Entity :: struct {
@@ -87,6 +70,7 @@ Meteor :: struct {
 	using entity: Entity,
 }
 
+Screen :: enum{Title, Game}
 currentScreen: Screen
 // I'm thinking particles can be handled later with an arena.
 update :: proc() {
@@ -102,8 +86,6 @@ update :: proc() {
 	free_all(context.temp_allocator)
 }
 
-Screen :: enum{Title, Game}
-
 game_loop :: proc() {
 	delta := rl.GetFrameTime()
 	if rl.IsKeyPressed(.ESCAPE) do state.paused = !state.paused
@@ -114,6 +96,27 @@ game_loop :: proc() {
 	}
 	player := &state.player
 
+	spawnTimer -= delta
+	if spawnTimer <= 0 {
+		// Spawn meteors
+		spawners := [3][2]f32{
+			{50, 50},
+			{700, 100},
+			{600, 700}
+		}
+		for i in 0..<len(spawners) {
+			position := spawners[i]
+			append(&state.meteors, Meteor{
+				pos = position,
+				velocity = get_normalized_vector_facing_target(position, state.comet.pos) * 80,
+				size = {32, 32},
+				alive = true,
+			})
+		}
+		spawnTimer = 1.5
+	}
+
+	// Handle entities
 
 	handle_input()
 	player.pos += player.velocity * delta
@@ -184,11 +187,9 @@ handle_input :: proc() {
 	if rl.IsKeyDown(.W) do player.velocity.y -= playerSpeed
 	if rl.IsKeyDown(.S) do player.velocity.y += playerSpeed
 	if rl.IsMouseButtonPressed(.LEFT) {
-		targetX := f32(rl.GetMouseX()) - player.pos.x
-		targetY := f32(rl.GetMouseY()) - player.pos.y
-		targetLen := math.sqrt(targetX * targetX + targetY * targetY)
-		state.lookVec = {targetX, targetY} / targetLen
-		bulletSpeed :: 250
+		mousePos := [2]f32{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
+		state.lookVec = get_normalized_vector_facing_target(player.pos, mousePos)
+		bulletSpeed :: 500
 		append(&state.projectiles, Entity{
 			pos = player.pos + state.lookVec * 30,
 			velocity = state.lookVec * bulletSpeed,
@@ -197,6 +198,12 @@ handle_input :: proc() {
 		})
 		rl.PlaySound(laserSound)
 	}
+}
+
+get_normalized_vector_facing_target :: proc(base: [2]f32, target: [2]f32) -> [2]f32 {
+	difference := target - base
+	distance := math.sqrt(difference.x * difference.x + difference.y * difference.y)
+	return difference / distance
 }
 
 // In a web build, this is called when browser changes size. Remove the
