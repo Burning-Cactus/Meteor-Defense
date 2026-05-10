@@ -1,34 +1,23 @@
 package game
 
 import rl "vendor:raylib"
-import "core:math"
+
+current_tower_type := &laserTowerStats
+current_pending_tower:Tower
 
 update_build_mode :: proc(state: ^GameState) {
+	//NOTE: input processing should only be done in frame loop
 	mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
-	buildPos := find_intersection_point_on_entity(mousePos, state.comet)
-	state.buildCursor = buildPos
-	facingVec := mousePos - buildPos
+	current_pending_tower.pos = find_intersection_point_on_entity(mousePos, state.comet)
+	current_pending_tower.rot = angle_facing(current_pending_tower.pos, mousePos)
+	current_pending_tower.stats = current_tower_type
+	current_pending_tower.shape = current_tower_type.shape // is there a way to automate this?
+
 	if rl.IsMouseButtonPressed(.LEFT) {
-		angle := -math.atan(facingVec.y / facingVec.x)
-		tower := Tower{
-			shape = laserTowerStats.shape,
-			pos = buildPos,
-			rot = angle,
-			stats = &laserTowerStats,
-		}
-		append(&state.towers, tower)
+		append(&state.towers, current_pending_tower)
 	}
 }
 
 draw_build_mode :: proc(state: GameState) {
-	mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
-	buildPos := state.buildCursor
-	facingVec := mousePos - buildPos
-	angle := -math.atan(facingVec.y / facingVec.x)
-	tower := Tower{
-		pos = buildPos,
-		rot = angle,
-		stats = &laserTowerStats,
-	}
-	tower.stats.draw(tower, {0xFF, 0x8F, 0x8F, 0x8F})
+	draw_entity(current_pending_tower, {0xFF, 0x8F, 0x8F, 0x8F})
 }

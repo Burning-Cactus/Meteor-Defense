@@ -172,13 +172,8 @@ draw_game_screen :: proc(state: GameState) {
 	}
 
 	if state.buildMode {
-		test_draw_build_mode(state)
+		draw_build_mode(state)
 		draw_build_mode(state)
 	}
 }
 
-// TODO: Use a ray cast to snap the tower to the comet's edges. I'm too tired to process this right now.
-test_draw_build_mode :: proc(state: GameState) {
-	buildPos := state.buildCursor
-	rl.DrawRectangleLinesEx({buildPos.x - 8, buildPos.y - 8, 16, 16}, 1.5, rl.GREEN)
-}
