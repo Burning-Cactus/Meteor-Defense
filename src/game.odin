@@ -180,7 +180,7 @@ get_rotation_matrix :: proc(radians: f32) -> matrix[2, 2]f32 {
 	s := math.sin(radians)
 	m := matrix[2, 2]f32{
 		c, -s,
-		s, c
+		s, c,
 	}
 	return m
 }

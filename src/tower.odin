@@ -23,7 +23,7 @@ initTowerStats :: proc() {
 	laserTowerStats = {
 		shape = Rect{{48, 48}},
 		draw = drawTower,
-		attack_cooldown = 2
+		attack_cooldown = 2,
 	}
 }
 
