@@ -85,7 +85,7 @@ draw_shape ::proc(s:Shape, pos:Vec2, rot:f32, color:rl.Color) {
 		c_pos := Vec2{offset.x, offset.y} * rot_mat + pos
 		d_pos := Vec2{offset.x, -offset.y} * rot_mat + pos
 		line_strip := [5]Vec2{a_pos, b_pos, c_pos, d_pos, a_pos}
-		rl.DrawLineStrip(&line_strip[0], 5, color)
+		rl.DrawLineStrip(&line_strip[0], 5, color) //FIXME: this doesn't apply thickness
 	case Circle:
 		c := s.(Circle)
 		t :f32 = line_thickness/2.0

@@ -19,9 +19,14 @@ draw_build_mode :: proc(state: ^GameState) {
 	if check_collision_any(current_pending_tower, state.towers) {
 		color = {0xFF, 0x3F, 0x3F, 0xFF}
 		can_build = false
+	} else if current_tower_type.cost > state.money {
+		color = {0xFF, 0xFF, 0x3F, 0xFF}
+		can_build = false
 	}
+
 	draw_entity(current_pending_tower, color)
 	if rl.IsMouseButtonPressed(.LEFT) && can_build {
+		state.money -= current_pending_tower.stats.cost
 		append(&state.towers, current_pending_tower)
 	}
 }

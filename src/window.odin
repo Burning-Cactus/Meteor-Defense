@@ -23,6 +23,7 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	gameTime: f64,
 	timeRemaining: f32,
 	gameOver: bool,
+	money: int,
 
 	buildMode: bool,
 	cursor: Vec2,
@@ -42,6 +43,7 @@ state: GameState = { //?
 	},
 	cometHealth = 20,
 	timeRemaining = 60,
+	money = 20,
 }
 
 
@@ -74,6 +76,8 @@ init :: proc() {
 
 update :: proc() {
 	state.cursor = Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())} // we can transform this with camera later
+	delta := rl.GetFrameTime()
+
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.BLACK)
 	switch currentScreen {
@@ -84,8 +88,13 @@ update :: proc() {
 			paused = !paused
 			fmt.printf("paused")
 		}
-		if !paused {
-			game_loop(rl.GetFrameTime())
+		if !paused && !state.gameOver{
+			game_loop(delta)
+			state.gameTime += f64(delta)
+			state.timeRemaining -= delta
+			if state.timeRemaining <= 0 {
+				state.gameOver = true
+			}
 		}
 		draw_game_screen(&state)
 	}

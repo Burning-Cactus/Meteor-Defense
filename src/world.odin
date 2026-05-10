@@ -12,10 +12,6 @@ rockDestroyedSound: rl.Sound
 
 // I'm thinking particles can be handled later with an arena.
 game_loop :: proc(delta:f32) {
-	if state.gameOver {
-		state.gameTime += f64(delta) //?
-		return
-	}
 	if rl.IsKeyPressed(.ONE) {
 		state.buildMode = !state.buildMode
 	}
@@ -67,6 +63,7 @@ game_loop :: proc(delta:f32) {
 		if !state.meteors[i].alive {
 			unordered_remove(&state.meteors, i)
 			rl.PlaySound(rockDestroyedSound)
+			state.money += 1
 		}
 	}
 	// TODO: Define the boundaries of the map, and kill the bullets when they exit.
@@ -74,11 +71,6 @@ game_loop :: proc(delta:f32) {
 		if !state.projectiles[i].alive do unordered_remove(&state.projectiles, i)
 	}
 
-	state.gameTime += f64(delta)
-	state.timeRemaining -= delta
-	if state.timeRemaining <= 0 {
-		state.gameOver = true
-	}
 }
 
 handle_input :: proc() {
@@ -168,6 +160,8 @@ draw_game_screen :: proc(state: ^GameState) {
 		rl.DrawText("VICTORY", rl.GetScreenWidth() / 2 - 240, rl.GetScreenHeight() / 2 - 50, 64, rl.LIGHTGRAY)
 	} else {
 		rl.DrawText(rl.TextFormat("Time left: %.0f seconds", state.timeRemaining), rl.GetScreenWidth() - 240, 10, 20, rl.WHITE)
+		rl.DrawText(rl.TextFormat("$%d", state.money), rl.GetScreenWidth() - 240, 40, 20, rl.WHITE)
+		rl.DrawText(rl.TextFormat("HP: %d", state.cometHealth), rl.GetScreenWidth() - 240, 70, 20, rl.WHITE)
 	}
 
 	if state.buildMode {
