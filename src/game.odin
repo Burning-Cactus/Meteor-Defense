@@ -22,6 +22,8 @@ init :: proc() {
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
 	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
+
+	initTowerStats()
 }
 
 start_game :: proc() {
@@ -32,6 +34,7 @@ GameState :: struct {
 	player: Entity,
 	lookVec: Vec2,
 	meteors: [dynamic]Meteor,
+	towers: [dynamic]Tower,
 	projectiles: [dynamic]Entity,
 	comet: Entity,
 	cometHealth: i32,
@@ -58,14 +61,9 @@ state: GameState = {
 		shape = Circle{200},
 	},
 	cometHealth = 20,
-	timeRemaining = 30,
+	timeRemaining = 60,
 }
 spawnTimer: f32
-
-// Different meteors will have different path strategies in the future.
-Meteor :: struct {
-	using entity: Entity,
-}
 
 Screen :: enum{Title, Game}
 currentScreen := Screen.Game
@@ -96,8 +94,7 @@ game_loop :: proc() {
 	}
 
 	if state.buildMode {
-		mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
-		state.buildCursor = find_intersection_point_on_entity(mousePos, state.comet)
+		update_build_mode(&state)
 	}
 
 	player := &state.player
@@ -125,6 +122,9 @@ game_loop :: proc() {
 	// Handle entities
 	handle_input()
 	player.pos += player.velocity * delta
+	mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
+	state.lookVec = get_normalized_vector_facing_target(player.pos, mousePos)
+	player.rot = math.atan(-state.lookVec.y / state.lookVec.x)
 
 	meteorCount := len(state.meteors)
 	projectileCount := len(state.projectiles)
@@ -151,6 +151,25 @@ game_loop :: proc() {
 			meteor.alive = false
 		}
 	}
+	towerCount := len(state.towers)
+	for i in 0..<towerCount {
+		tower := &state.towers[i]
+		if tower.attack_timer <= 0 {
+			tower.attack_timer = tower.stats.attack_cooldown
+
+			dir := get_normalized_vector_facing_target(tower.pos, state.meteors[0].pos)
+			bulletSpeed :: 500
+			append(&state.projectiles, Entity{
+				pos = tower.pos + state.lookVec * 30,
+				velocity = dir * bulletSpeed,
+				shape = Circle {12},
+				alive = true,
+			})
+			rl.PlaySound(laserSound)
+		} else {
+			tower.attack_timer -= delta
+		}
+	}
 
 	// Loop backwards to clear the array.
 	for i := meteorCount - 1; i >= 0; i -= 1 {
@@ -171,7 +190,6 @@ game_loop :: proc() {
 	}
 }
 
-
 handle_input :: proc() {
 	player := &state.player
 
@@ -181,9 +199,7 @@ handle_input :: proc() {
 	if rl.IsKeyDown(.D) do player.velocity.x += playerSpeed
 	if rl.IsKeyDown(.W) do player.velocity.y -= playerSpeed
 	if rl.IsKeyDown(.S) do player.velocity.y += playerSpeed
-	if rl.IsMouseButtonPressed(.LEFT) {
-		mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
-		state.lookVec = get_normalized_vector_facing_target(player.pos, mousePos)
+	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) {
 		bulletSpeed :: 500
 		append(&state.projectiles, Entity{
 			pos = player.pos + state.lookVec * 30,
@@ -193,7 +209,16 @@ handle_input :: proc() {
 		})
 		rl.PlaySound(laserSound)
 	}
+}
 
+get_rotation_matrix :: proc(radians: f32) -> matrix[2, 2]f32 {
+	c := math.cos(radians)
+	s := math.sin(radians)
+	m := matrix[2, 2]f32{
+		c, -s,
+		s, c
+	}
+	return m
 }
 
 find_intersection_point_on_entity :: proc(startPos: Vec2, target: Entity) -> (collisionPoint: Vec2) {

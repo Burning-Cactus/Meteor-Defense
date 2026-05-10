@@ -19,8 +19,14 @@ Entity :: struct {
 	alive: bool,
 }
 
+// Different meteors will have different path strategies in the future.
+Meteor :: struct {
+	using entity: Entity,
+}
+
+// Possibly check for rotation later?
 @(private)
-check_collision_rects :: proc(a: Rect, a_pos: Vec2, b: Rect, b_pos: Vec2) -> bool {
+check_collision_rects :: proc(a: Rect, a_pos: Vec2, a_rot: f32, b: Rect, b_pos: Vec2, b_rot: f32) -> bool {
 	a_nw := a_pos - (a.size / 2)
 	b_nw := b_pos - (b.size / 2)
 	a_se := a_pos + (a.size / 2)
@@ -55,11 +61,11 @@ check_collision :: proc(a: Entity, b: Entity) -> bool {
 	ac, a_is_circle := a.shape.(Circle)
 	bc, b_is_circle := b.shape.(Circle)
 	if a_is_rect && b_is_rect {
-		return check_collision_rects(ar, a.pos, br, b.pos)
+		return check_collision_rects(ar, a.pos, a.rot, br, b.pos, b.rot)
 	} if a_is_circle && b_is_circle {
 		return check_collision_circles(ac, a.pos, bc, b.pos)
 	} if (a_is_circle && b_is_rect) || (a_is_rect && b_is_circle) {
-		return true // not implemented
+		return false // not implemented
 	}
 
 	return false  // One of the Entities has no shape?
@@ -69,9 +75,14 @@ draw_entity :: proc(e: Entity, color: rl.Color) {
 	switch _ in e.shape {
 	case Rect:
 		r := e.shape.(Rect)
-		top_left := e.pos - r.size / 2
-		rect := rl.Rectangle { top_left.x, top_left.y, r.size.x, r.size.y }
-		rl.DrawRectangleLinesEx(rect, line_thickness, color)
+		offset := r.size / 2
+		rot_mat := get_rotation_matrix(e.rot)
+		a_pos := Vec2{-offset.x, -offset.y} * rot_mat + e.pos
+		b_pos := Vec2{-offset.x, offset.y} * rot_mat + e.pos
+		c_pos := Vec2{offset.x, offset.y} * rot_mat + e.pos
+		d_pos := Vec2{offset.x, -offset.y} * rot_mat + e.pos
+		line_strip := [5]Vec2{a_pos, b_pos, c_pos, d_pos, a_pos}
+		rl.DrawLineStrip(&line_strip[0], 5, color)
 	case Circle:
 		c := e.shape.(Circle)
 		t :f32 = line_thickness/2.0

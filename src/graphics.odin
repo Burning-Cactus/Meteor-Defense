@@ -17,6 +17,12 @@ draw_game_screen :: proc(state: GameState) {
 	for i in 0..<meteorCount {
 		draw_entity(state.meteors[i], rl.RED)
 	}
+	towerCount := len(state.towers)
+	for i in 0..<towerCount {
+		tower := state.towers[i]
+		tower.stats.draw(tower, rl.LIGHTGRAY)
+	}
+
 	projectileCount := len(state.projectiles)
 	for i in 0..<projectileCount {
 		draw_entity(state.projectiles[i], rl.GRAY)
@@ -30,6 +36,7 @@ draw_game_screen :: proc(state: GameState) {
 
 	if state.buildMode {
 		test_draw_build_mode(state)
+		draw_build_mode(state)
 	}
 	rl.EndDrawing()
 }
