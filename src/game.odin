@@ -63,7 +63,6 @@ state: GameState = {
 	cometHealth = 20,
 	timeRemaining = 60,
 }
-spawnTimer: f32
 
 Screen :: enum{Title, Game}
 currentScreen := Screen.Game
@@ -97,30 +96,12 @@ game_loop :: proc() {
 		update_build_mode(&state)
 	}
 
-	player := &state.player
+	handle_spawns(&state, delta)
 
-	spawnTimer -= delta
-	if spawnTimer <= 0 {
-		// Spawn meteors
-		spawners := [3]Vec2{
-			{50, 50},
-			{700, 100},
-			{600, 700},
-		}
-		for i in 0..<len(spawners) {
-			position := spawners[i]
-			append(&state.meteors, Meteor{
-				pos = position,
-				velocity = get_normalized_vector_facing_target(position, state.comet.pos) * 80,
-				shape = Circle{32},
-				alive = true,
-			})
-		}
-		spawnTimer = 1.5
-	}
 
 	// Handle entities
 	handle_input()
+	player := &state.player
 	player.pos += player.velocity * delta
 	mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
 	state.lookVec = get_normalized_vector_facing_target(player.pos, mousePos)
@@ -151,25 +132,8 @@ game_loop :: proc() {
 			meteor.alive = false
 		}
 	}
-	towerCount := len(state.towers)
-	for i in 0..<towerCount {
-		tower := &state.towers[i]
-		if tower.attack_timer <= 0 {
-			tower.attack_timer = tower.stats.attack_cooldown
 
-			dir := get_normalized_vector_facing_target(tower.pos, state.meteors[0].pos)
-			bulletSpeed :: 500
-			append(&state.projectiles, Entity{
-				pos = tower.pos + state.lookVec * 30,
-				velocity = dir * bulletSpeed,
-				shape = Circle {12},
-				alive = true,
-			})
-			rl.PlaySound(laserSound)
-		} else {
-			tower.attack_timer -= delta
-		}
-	}
+	update_towers(&state, delta)
 
 	// Loop backwards to clear the array.
 	for i := meteorCount - 1; i >= 0; i -= 1 {

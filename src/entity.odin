@@ -44,12 +44,6 @@ sqr :: proc(f:f32)  -> f32 {
 	return f*f
 }
 
-@private
-dist_squared :: proc(a:Vec2, b:Vec2) -> f32 {
-	x := a.x - b.x
-	y := a.y - b.y
-	return x*x + y*y
-}
 @(private)
 check_collision_circles :: proc(a: Circle, a_pos: Vec2 , b: Circle, b_pos: Vec2) -> bool {
 	return dist_squared(a_pos, b_pos) < sqr(a.radius + b.radius)
@@ -70,6 +64,30 @@ check_collision :: proc(a: Entity, b: Entity) -> bool {
 
 	return false  // One of the Entities has no shape?
 }
+
+spawnTimer: f32
+handle_spawns :: proc(state: ^GameState, delta: f32) {
+	spawnTimer -= delta
+	if spawnTimer <= 0 {
+		// Spawn meteors
+		spawners := [3]Vec2{
+			{50, 50},
+			{700, 100},
+			{600, 700},
+		}
+		for i in 0..<len(spawners) {
+			position := spawners[i]
+			append(&state.meteors, Meteor{
+				pos = position,
+				velocity = get_normalized_vector_facing_target(position, state.comet.pos) * 80,
+				shape = Circle{32},
+				alive = true,
+			})
+		}
+		spawnTimer = 1.5
+	}
+}
+
 
 draw_entity :: proc(e: Entity, color: rl.Color) {
 	switch _ in e.shape {
