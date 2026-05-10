@@ -1,34 +1,14 @@
+// The 2D world, all the entities inside it, and how they interact with eachother.
 package game
 
 import rl "vendor:raylib"
-import "core:c"
 import "core:fmt"
 import "core:math"
 
 Vec2 :: [2]f32
 
-run: bool
 laserSound: rl.Sound
 rockDestroyedSound: rl.Sound
-
-init :: proc() {
-	run = true
-	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
-	rl.InitWindow(1280, 720, "Meteor Defense")
-	currentScreen = .Title
-	// Disable quiting with esc key.
-	rl.SetExitKey(.KEY_NULL)
-
-	rl.InitAudioDevice()
-	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
-	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
-
-	initTowerStats()
-}
-
-start_game :: proc() {
-	currentScreen = .Game
-}
 
 GameState :: struct {
 	player: Entity,
@@ -43,7 +23,6 @@ GameState :: struct {
 	timeRemaining: f32,
 	gameOver: bool,
 
-	paused: bool,
 	buildMode: bool,
 	buildCursor: Vec2,
 }
@@ -64,28 +43,10 @@ state: GameState = {
 	timeRemaining = 60,
 }
 
-Screen :: enum{Title, Game}
-currentScreen := Screen.Game
 // I'm thinking particles can be handled later with an arena.
-update :: proc() {
-	switch currentScreen {
-	// TODO: Make a title screen for progressing to the main game.
-	case .Title:
-		draw_title_screen()
-	case .Game:
-		game_loop()
-		draw_game_screen(state)
-	}
-	// Anything allocated using temp allocator is invalid after this.
-	free_all(context.temp_allocator)
-}
-
-game_loop :: proc() {
-	delta := rl.GetFrameTime()
-	if rl.IsKeyPressed(.ESCAPE) do state.paused = !state.paused
-	if state.paused do return
+game_loop :: proc(delta:f32) {
 	if state.gameOver {
-		state.gameTime += f64(delta)
+		state.gameTime += f64(delta) //?
 		return
 	}
 	if rl.IsKeyPressed(.ONE) {
@@ -198,16 +159,6 @@ handle_spawns :: proc(state: ^GameState, delta: f32) {
 }
 
 
-get_rotation_matrix :: proc(radians: f32) -> matrix[2, 2]f32 {
-	c := math.cos(radians)
-	s := math.sin(radians)
-	m := matrix[2, 2]f32{
-		c, -s,
-		s, c,
-	}
-	return m
-}
-
 find_intersection_point_on_entity :: proc(startPos: Vec2, target: Entity) -> (collisionPoint: Vec2) {
 	rayVec := target.pos - startPos
 	rayLength := math.sqrt(rayVec.x * rayVec.x + rayVec.y * rayVec.y)
@@ -223,29 +174,44 @@ find_intersection_point_on_entity :: proc(startPos: Vec2, target: Entity) -> (co
 	return result
 }
 
-get_normalized_vector_facing_target :: proc(base: Vec2, target: Vec2) -> Vec2 {
-	difference := target - base
-	distance := math.sqrt(difference.x * difference.x + difference.y * difference.y)
-	return difference / distance
-}
+draw_game_screen :: proc(state: GameState) {
+	// This is just for verifying that collision checks work. Feel free to rip out this if statement for the comet color.
+	if check_collision(state.comet, state.player) {
+		draw_entity(state.comet, rl.RED)
+	} else {
+		draw_entity(state.comet, rl.WHITE)
+	}
+	draw_entity(state.player, rl.WHITE)
 
-// In a web build, this is called when browser changes size. Remove the
-// `rl.SetWindowSize` call if you don't want a resizable game.
-parent_window_size_changed :: proc(w, h: int) {
-	rl.SetWindowSize(c.int(w), c.int(h))
-}
-
-shutdown :: proc() {
-	rl.CloseWindow()
-}
-
-should_run :: proc() -> bool {
-	when ODIN_OS != .JS {
-		// Never run this proc in browser. It contains a 16 ms sleep on web!
-		if rl.WindowShouldClose() {
-			run = false
-		}
+	meteorCount := len(state.meteors)
+	for i in 0..<meteorCount {
+		draw_entity(state.meteors[i], rl.RED)
+	}
+	towerCount := len(state.towers)
+	for i in 0..<towerCount {
+		tower := state.towers[i]
+		tower.stats.draw(tower, rl.LIGHTGRAY)
 	}
 
-	return run
+	projectileCount := len(state.projectiles)
+	for i in 0..<projectileCount {
+		draw_entity(state.projectiles[i], rl.GRAY)
+	}
+
+	if state.gameOver {
+		rl.DrawText("VICTORY", rl.GetScreenWidth() / 2 - 240, rl.GetScreenHeight() / 2 - 50, 64, rl.LIGHTGRAY)
+	} else {
+		rl.DrawText(rl.TextFormat("Time left: %.0f seconds", state.timeRemaining), rl.GetScreenWidth() - 240, 10, 20, rl.WHITE)
+	}
+
+	if state.buildMode {
+		test_draw_build_mode(state)
+		draw_build_mode(state)
+	}
+}
+
+// TODO: Use a ray cast to snap the tower to the comet's edges. I'm too tired to process this right now.
+test_draw_build_mode :: proc(state: GameState) {
+	buildPos := state.buildCursor
+	rl.DrawRectangleLinesEx({buildPos.x - 8, buildPos.y - 8, 16, 16}, 1.5, rl.GREEN)
 }

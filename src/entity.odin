@@ -1,3 +1,5 @@
+// Things that live in the game world which, move, collide, or are drawn.
+// Includes abstract definitions and more concrete specific entities; how they're drawn, and how they behave
 package game
 import rl "vendor:raylib"
 

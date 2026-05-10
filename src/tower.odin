@@ -16,14 +16,10 @@ Tower :: struct {
 	stats: ^TowerStats,
 }
 
-laserTowerStats: TowerStats
-
-initTowerStats :: proc() {
-	laserTowerStats = {
-		shape = Rect{{48, 48}},
-		draw = drawTower,
-		attack_cooldown = 2,
-	}
+laserTowerStats := TowerStats {
+	shape = Rect{{48, 48}},
+	draw = drawTower,
+	attack_cooldown = 2,
 }
 
 update_towers :: proc(state: ^GameState, delta: f32) {
