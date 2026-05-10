@@ -24,9 +24,8 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	timeRemaining: f32,
 	gameOver: bool,
 
-
 	buildMode: bool,
-	buildCursor: Vec2,
+	cursor: Vec2,
 }
 
 state: GameState = { //?
@@ -74,6 +73,7 @@ init :: proc() {
 }
 
 update :: proc() {
+	state.cursor = Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())} // we can transform this with camera later
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.BLACK)
 	switch currentScreen {

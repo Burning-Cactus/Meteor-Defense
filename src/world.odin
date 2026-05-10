@@ -31,8 +31,7 @@ game_loop :: proc(delta:f32) {
 	handle_input()
 	player := &state.player
 	player.pos += player.velocity * delta
-	mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
-	state.lookVec = get_normalized_vector_facing_target(player.pos, mousePos)
+	state.lookVec = get_normalized_vector_facing_target(player.pos, state.cursor)
 	player.rot = math.atan(-state.lookVec.y / state.lookVec.x)
 
 	meteorCount := len(state.meteors)
