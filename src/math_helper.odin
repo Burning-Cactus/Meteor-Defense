@@ -7,3 +7,7 @@ dist_squared :: proc(a:Vec2, b:Vec2) -> f32 {
 	y := a.y - b.y
 	return x*x + y*y
 }
+
+sqr :: proc(f:f32)  -> f32 {
+	return f*f
+}

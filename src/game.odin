@@ -174,6 +174,29 @@ handle_input :: proc() {
 		rl.PlaySound(laserSound)
 	}
 }
+spawnTimer: f32
+handle_spawns :: proc(state: ^GameState, delta: f32) {
+	spawnTimer -= delta
+	if spawnTimer <= 0 {
+		// Spawn meteors
+		spawners := [3]Vec2{
+			{50, 50},
+			{700, 100},
+			{600, 700},
+		}
+		for i in 0..<len(spawners) {
+			position := spawners[i]
+			append(&state.meteors, Meteor{
+				pos = position,
+				velocity = get_normalized_vector_facing_target(position, state.comet.pos) * 80,
+				shape = Circle{32},
+				alive = true,
+			})
+		}
+		spawnTimer = 1.5
+	}
+}
+
 
 get_rotation_matrix :: proc(radians: f32) -> matrix[2, 2]f32 {
 	c := math.cos(radians)
