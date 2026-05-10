@@ -11,6 +11,7 @@ update_build_mode :: proc(state: ^GameState) {
 	if rl.IsMouseButtonPressed(.LEFT) {
 		angle := -math.atan(facingVec.y / facingVec.x)
 		tower := Tower{
+			shape = laserTowerStats.shape,
 			pos = buildPos,
 			rot = angle,
 			stats = &laserTowerStats,
