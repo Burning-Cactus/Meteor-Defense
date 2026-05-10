@@ -87,7 +87,7 @@ update :: proc() {
 		if !paused {
 			game_loop(rl.GetFrameTime())
 		}
-		draw_game_screen(state)
+		draw_game_screen(&state)
 	}
 	rl.EndDrawing()
 	// Anything allocated using temp allocator is invalid after this.

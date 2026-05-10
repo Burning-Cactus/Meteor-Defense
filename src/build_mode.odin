@@ -11,12 +11,17 @@ update_build_mode :: proc(state: ^GameState) {
 	current_pending_tower.rot = angle_facing(current_pending_tower.pos, state.cursor)
 	current_pending_tower.stats = current_tower_type
 	current_pending_tower.shape = current_tower_type.shape // is there a way to automate this?
-
-	if rl.IsMouseButtonPressed(.LEFT) {
-		append(&state.towers, current_pending_tower)
-	}
 }
 
-draw_build_mode :: proc(state: GameState) {
-	draw_entity(current_pending_tower, {0xFF, 0x8F, 0x8F, 0x8F})
+draw_build_mode :: proc(state: ^GameState) {
+	color:rl.Color = {0x8F, 0xFF, 0x8F, 0xFF}
+	can_build:=true
+	if check_collision_any(current_pending_tower, state.towers) {
+		color = {0xFF, 0x3F, 0x3F, 0xFF}
+		can_build = false
+	}
+	draw_entity(current_pending_tower, color)
+	if rl.IsMouseButtonPressed(.LEFT) && can_build {
+		append(&state.towers, current_pending_tower)
+	}
 }

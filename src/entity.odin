@@ -31,7 +31,7 @@ Meteor :: struct {
 // --- Collision ---
 
 rl_rect ::proc(e:Entity, r:Rect) -> rl.Rectangle {
-		return rl.Rectangle{r.size.x, r.size.y, e.pos.x, e.pos.y}
+		return rl.Rectangle{e.pos.x, e.pos.y, r.size.x, r.size.y}
 }
 
 
@@ -55,6 +55,7 @@ check_collision_circle_other ::proc(a:Circle, a_pos:Vec2, b:Entity) -> bool {
 }
 
 check_collision :: proc(a: Entity, b: Entity) -> bool {
+	if a == b do return false // or perhaps true?
 	switch _ in a.shape {
 	case Rect:
 		return check_collision_rect_other(rl_rect(a, a.shape.(Rect)), b)
@@ -62,6 +63,13 @@ check_collision :: proc(a: Entity, b: Entity) -> bool {
 		return check_collision_circle_other(a.shape.(Circle), a.pos, b)
 	}
 	return false  // One of the Entities has no shape?
+}
+
+check_collision_any :: proc(a: Entity, list:[dynamic]Tower) -> bool{ //HACK: this is supposed to be useable for all entities, not just towers
+	for b in list {
+		if check_collision(a, b) do return true
+	}
+	return false //TODO maybe more useful if it returned b
 }
 
 // --- Drawing ---
