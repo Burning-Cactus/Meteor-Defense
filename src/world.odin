@@ -10,39 +10,6 @@ Vec2 :: [2]f32
 laserSound: rl.Sound
 rockDestroyedSound: rl.Sound
 
-GameState :: struct {
-	player: Entity,
-	lookVec: Vec2,
-	meteors: [dynamic]Meteor,
-	towers: [dynamic]Tower,
-	projectiles: [dynamic]Entity,
-	comet: Entity,
-	cometHealth: i32,
-
-	gameTime: f64,
-	timeRemaining: f32,
-	gameOver: bool,
-
-	buildMode: bool,
-	buildCursor: Vec2,
-}
-
-state: GameState = {
-	player = Entity{
-		label = "jelly",
-		pos = {700, 600},
-		shape = Rect{32},
-		alive = true,
-	},
-	comet = Entity{
-		label = "comet",
-		pos = {400, 300},
-		shape = Circle{200},
-	},
-	cometHealth = 20,
-	timeRemaining = 60,
-}
-
 // I'm thinking particles can be handled later with an arena.
 game_loop :: proc(delta:f32) {
 	if state.gameOver {

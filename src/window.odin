@@ -11,6 +11,42 @@ currentScreen := Screen.Game
 run := true
 paused: bool
 
+GameState :: struct { //TODO: split some of this into new WorldState
+	player: Entity,
+	lookVec: Vec2,
+	meteors: [dynamic]Meteor,
+	towers: [dynamic]Tower,
+	projectiles: [dynamic]Entity,
+	comet: Entity,
+	cometHealth: i32,
+
+	gameTime: f64,
+	timeRemaining: f32,
+	gameOver: bool,
+
+
+	buildMode: bool,
+	buildCursor: Vec2,
+}
+
+state: GameState = { //?
+	player = Entity{
+		label = "jelly",
+		pos = {700, 600},
+		shape = Rect{32},
+		alive = true,
+	},
+	comet = Entity{
+		label = "comet",
+		pos = {400, 300},
+		shape = Circle{200},
+	},
+	cometHealth = 20,
+	timeRemaining = 60,
+}
+
+
+
 draw_title_screen :: proc() {
 	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
 	midPoint := cast(Vec2) screenSize / 2
@@ -26,7 +62,6 @@ draw_title_screen :: proc() {
 }
 
 init :: proc() {
-	run = true
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
 	//rl.SetTargetFPS(10)
 	rl.InitWindow(1280, 720, "Meteor Defense")
@@ -38,7 +73,6 @@ init :: proc() {
 	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
 }
 
-// do one frame of the game
 update :: proc() {
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.BLACK)
@@ -76,7 +110,6 @@ should_run :: proc() -> bool {
 		// Never run this proc in browser. It contains a 16 ms sleep on web!
 		run &&= !rl.WindowShouldClose()
 	}
-
 	return run
 }
 
