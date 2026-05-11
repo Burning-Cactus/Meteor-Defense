@@ -7,7 +7,7 @@ TowerStats :: struct {
 	shape: Shape,
 	// Number of seconds between each attack
 	attack_cooldown: f32,
-	draw: proc(t: Tower, color: rl.Color),
+	draw: proc(t: ^Tower, color: rl.Color),
 	cost: int,
 }
 
@@ -64,6 +64,6 @@ get_target :: proc(state: ^GameState) -> (target: ^Entity) {
 	return target
 }
 
-drawTower :: proc(tower: Tower, color: rl.Color) {
-	draw_entity(tower, color)
+drawTower :: proc(tower: ^Tower, color: rl.Color) {
+	draw_entity(&tower.entity, color)
 }

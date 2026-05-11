@@ -2,6 +2,7 @@
 // Includes abstract definitions and more concrete specific entities; how they're drawn, and how they behave
 package game
 import rl "vendor:raylib"
+import "core:math"
 
 line_thickness :: 1.5
 
@@ -23,7 +24,7 @@ Entity :: struct {
 
 	hp: f32,
 
-	draw: proc(e: Entity, color: rl.Color),
+	draw: proc(e: ^Entity, color: rl.Color),
 
 	alive: bool,
 }
@@ -74,6 +75,26 @@ check_collision_any :: proc(a: Entity, list:[dynamic]Tower) -> bool{ //HACK: thi
 
 // --- Drawing ---
 
+draw_shooting_star :: proc(e: ^Entity, color: rl.Color) {
+	segment :: math.TAU/5.0
+	size:f32
+	switch _ in e.shape{
+	case Rect:
+		size=e.shape.(Rect).size.x * 0.7
+	case Circle:
+		size=e.shape.(Circle).radius * 1.6
+	}
+	rotate := math.PI / -2.0 - e.rot
+	for i in 0..<5 {
+		rl.DrawLineEx(
+			e.pos + unit_vector(segment * cast(f32)i + rotate) * size,
+			e.pos + unit_vector(segment * (cast(f32)i+2.0) + rotate) * size,
+			line_thickness,
+			color,
+		)
+	}
+}
+
 draw_shape ::proc(s:Shape, pos:Vec2, rot:f32, color:rl.Color) {
 	switch _ in s {
 	case Rect:
@@ -93,9 +114,13 @@ draw_shape ::proc(s:Shape, pos:Vec2, rot:f32, color:rl.Color) {
 	}
 
 }
-draw_entity :: proc(e: Entity, color: rl.Color) {
+
+draw_debug := false
+draw_entity :: proc(e: ^Entity, color: rl.Color) {
 	if e.draw != nil {
 		e.draw(e, color)
+		if draw_debug do draw_shape(e.shape, e.pos, e.rot, rl.MAGENTA)
+	} else {
+		draw_shape(e.shape, e.pos, e.rot, color)
 	}
-	draw_shape(e.shape, e.pos, e.rot, color)
 }

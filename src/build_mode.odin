@@ -24,7 +24,7 @@ draw_build_mode :: proc(state: ^GameState) {
 		can_build = false
 	}
 
-	draw_entity(current_pending_tower, color)
+	draw_entity(&current_pending_tower.entity, color)
 	if rl.IsMouseButtonPressed(.LEFT) && can_build {
 		state.money -= current_pending_tower.stats.cost
 		append(&state.towers, current_pending_tower)
