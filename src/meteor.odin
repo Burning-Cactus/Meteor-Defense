@@ -81,6 +81,7 @@ spawn_group :: proc(state: ^GameState, spawn_pos: Vec2) {
 			pos = offset_pos,
 			velocity = get_normalized_vector_facing_target(offset_pos, state.comet.pos) * stats.speed,
 			shape = stats.shape,
+			col = .RED,
 			alive = true,
 			hp= stats.max_health,
 			stats = stats,

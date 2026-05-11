@@ -14,19 +14,21 @@ update_build_mode :: proc(state: ^GameState) {
 }
 
 draw_build_mode :: proc(state: ^GameState) {
-	color:rl.Color = {0x8F, 0xFF, 0x8F, 0xFF}
-	can_build:=true
+	can_build := true
 	if check_collision_any(current_pending_tower, state.towers) {
-		color = {0xFF, 0x3F, 0x3F, 0xFF}
+		current_pending_tower.col = .RED
 		can_build = false
 	} else if current_tower_type.cost > state.money {
-		color = {0xFF, 0xFF, 0x3F, 0xFF}
+		current_pending_tower.col = .YELLOW
 		can_build = false
+	} else {
+		current_pending_tower.col = .CYAN
 	}
 
-	draw_entity(&current_pending_tower.entity, color)
+	draw_entity(&current_pending_tower.entity, state)
 	if rl.IsMouseButtonPressed(.LEFT) && can_build {
 		state.money -= current_pending_tower.stats.cost
+		current_pending_tower.col = .MID
 		append(&state.towers, current_pending_tower)
 	}
 }

@@ -102,22 +102,23 @@ find_intersection_point_on_entity :: proc(startPos: Vec2, target: Entity) -> (co
 }
 
 draw_game_screen :: proc(state: ^GameState) {
-	draw_entity(&state.comet, rl.WHITE)
-	draw_entity(&state.player, rl.WHITE)
+	state.comet.col = .RED if check_collision(state.comet, state.player) else .PRIMARY
+	draw_entity(&state.comet, state)
+	draw_entity(&state.player, state)
 
 	meteorCount := len(state.meteors)
 	for i in 0..<meteorCount {
-		draw_entity(&state.meteors[i].entity, rl.RED)
+		draw_entity(&state.meteors[i].entity, state)
 	}
 	towerCount := len(state.towers)
 	for i in 0..<towerCount {
 		tower := &state.towers[i]
-		tower.stats.draw(tower, rl.LIGHTGRAY)
+		tower.stats.draw(tower, state)
 	}
 
 	projectileCount := len(state.projectiles)
 	for i in 0..<projectileCount {
-		draw_entity(&state.projectiles[i], rl.GRAY)
+		draw_entity(&state.projectiles[i], state)
 	}
 
 	if state.buildMode {

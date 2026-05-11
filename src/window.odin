@@ -30,6 +30,7 @@ GameState :: struct { //TODO: split some of this into new WorldState
 
 	buildMode: bool,
 	cursor: Vec2,
+	scale_hint: f32,
 }
 
 state: GameState = {
@@ -78,6 +79,7 @@ init :: proc() {
 
 	camera.zoom = 1.0
 	pan_to_new_window_size()
+	set_theme()
 
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
@@ -108,6 +110,7 @@ update :: proc() {
 	}
 
 	state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
+	state.scale_hint = camera.zoom
 
 	rl.BeginDrawing()
 	defer free_all(context.temp_allocator)

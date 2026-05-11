@@ -21,8 +21,9 @@ Entity :: struct {
 	rot: f32,
 
 	hp: f32,
+	col: ThemeColor,
 
-	draw: proc(e: ^Entity, color: rl.Color),
+	draw: proc(e: ^Entity, state: ^GameState),
 
 	alive: bool,
 }
@@ -73,7 +74,9 @@ check_collision_any :: proc(a: Entity, list:[dynamic]Tower) -> bool{ //HACK: thi
 
 // --- Drawing ---
 
-draw_shooting_star :: proc(e: ^Entity, color: rl.Color) {
+draw_shooting_star :: proc(e: ^Entity, state: ^GameState) {
+	scale_hint: f32 = 1.0
+	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
 	segment :: math.TAU/5.0
 	size:f32
 	switch _ in e.shape{
@@ -84,41 +87,32 @@ draw_shooting_star :: proc(e: ^Entity, color: rl.Color) {
 	}
 	rotate := math.PI / -2.0 - e.rot
 	for i in 0..<5 {
-		rl.DrawLineEx(
+		draw_line(
 			e.pos + unit_vector(segment * cast(f32)i + rotate) * size,
 			e.pos + unit_vector(segment * (cast(f32)i+2.0) + rotate) * size,
-			line_thickness,
-			color,
+			e.col,
+			scale_hint,
 		)
 	}
 }
 
-draw_enity_shape ::proc(s:Shape, pos:Vec2, rot:f32, color:rl.Color) {
+draw_enity_shape ::proc(s:Shape, pos:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) {
 	switch _ in s {
 	case Rect:
-		r := s.(Rect)
-		offset := r.size / 2
-		rot_mat := get_rotation_matrix(rot)
-		a_pos := Vec2{-offset.x, -offset.y} * rot_mat + pos
-		b_pos := Vec2{-offset.x, offset.y} * rot_mat + pos
-		c_pos := Vec2{offset.x, offset.y} * rot_mat + pos
-		d_pos := Vec2{offset.x, -offset.y} * rot_mat + pos
-		line_strip := [5]Vec2{a_pos, b_pos, c_pos, d_pos, a_pos}
-		rl.DrawLineStrip(&line_strip[0], 5, color) //FIXME: this doesn't apply thickness
+		draw_rect(pos, s.(Rect).size, rot, col, scale_hint)
 	case Circle:
-		c := s.(Circle)
-		t :f32 = line_thickness/2.0
-		rl.DrawRing(pos, c.radius-t, c.radius+t, 0.0, 360.0, 16, color)
+		draw_circle(pos, s.(Circle).radius, col, scale_hint)
 	}
-
 }
 
 draw_debug := false
-draw_entity :: proc(e: ^Entity, color: rl.Color) {
+draw_entity :: proc(e: ^Entity, state: ^GameState) {
+	scale_hint: f32 = 1.0
+	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
 	if e.draw != nil {
-		e.draw(e, color)
-		if draw_debug do draw_enity_shape(e.shape, e.pos, e.rot, rl.MAGENTA)
+		e.draw(e, state)
+		if draw_debug do draw_enity_shape(e.shape, e.pos, e.rot, .DEBUG, scale_hint)
 	} else {
-		draw_enity_shape(e.shape, e.pos, e.rot, color)
+		draw_enity_shape(e.shape, e.pos, e.rot, e.col, scale_hint)
 	}
 }

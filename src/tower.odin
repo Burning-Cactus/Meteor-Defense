@@ -7,7 +7,7 @@ TowerStats :: struct {
 	shape: Shape,
 	// Number of seconds between each attack
 	attack_cooldown: f32,
-	draw: proc(t: ^Tower, color: rl.Color),
+	draw: proc(t: ^Tower, state: ^GameState),
 	cost: int,
 }
 
@@ -39,6 +39,7 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 					pos = tower.pos + state.lookVec * 30,
 					velocity = dir * bulletSpeed,
 					shape = Circle {12},
+					col = .MID,
 					alive = true,
 				})
 				rl.PlaySound(laserSound)
@@ -64,6 +65,6 @@ get_target :: proc(state: ^GameState) -> (target: ^Entity) {
 	return target
 }
 
-drawTower :: proc(tower: ^Tower, color: rl.Color) {
-	draw_entity(&tower.entity, color)
+drawTower :: proc(tower: ^Tower, state: ^GameState) {
+	draw_entity(&tower.entity, state)
 }
