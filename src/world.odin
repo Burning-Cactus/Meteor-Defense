@@ -12,10 +12,6 @@ rockDestroyedSound: rl.Sound
 
 // I'm thinking particles can be handled later with an arena.
 game_loop :: proc(delta:f32) {
-	if state.gameOver {
-		state.gameTime += f64(delta) //?
-		return
-	}
 	if rl.IsKeyPressed(.ONE) {
 		state.buildMode = !state.buildMode
 	}
@@ -30,8 +26,7 @@ game_loop :: proc(delta:f32) {
 	handle_input()
 	player := &state.player
 	player.pos += player.velocity * delta
-	mousePos := Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())}
-	state.lookVec = get_normalized_vector_facing_target(player.pos, mousePos)
+	state.lookVec = get_normalized_vector_facing_target(player.pos, state.cursor)
 	player.rot = math.atan(-state.lookVec.y / state.lookVec.x)
 
 	meteorCount := len(state.meteors)
@@ -57,6 +52,7 @@ game_loop :: proc(delta:f32) {
 		if !state.meteors[i].alive {
 			unordered_remove(&state.meteors, i)
 			rl.PlaySound(rockDestroyedSound)
+			state.money += 1
 		}
 	}
 	// TODO: Define the boundaries of the map, and kill the bullets when they exit.
@@ -64,11 +60,6 @@ game_loop :: proc(delta:f32) {
 		if !state.projectiles[i].alive do unordered_remove(&state.projectiles, i)
 	}
 
-	state.gameTime += f64(delta)
-	state.timeRemaining -= delta
-	if state.timeRemaining <= 0 {
-		state.gameOver = true
-	}
 }
 
 handle_input :: proc() {
@@ -107,7 +98,7 @@ find_intersection_point_on_entity :: proc(startPos: Vec2, target: Entity) -> (co
 	return result
 }
 
-draw_game_screen :: proc(state: GameState) {
+draw_game_screen :: proc(state: ^GameState) {
 	// This is just for verifying that collision checks work. Feel free to rip out this if statement for the comet color.
 	if check_collision(state.comet, state.player) {
 		draw_entity(state.comet, rl.RED)
@@ -135,16 +126,12 @@ draw_game_screen :: proc(state: GameState) {
 		rl.DrawText("VICTORY", rl.GetScreenWidth() / 2 - 240, rl.GetScreenHeight() / 2 - 50, 64, rl.LIGHTGRAY)
 	} else {
 		rl.DrawText(rl.TextFormat("Time left: %.0f seconds", state.timeRemaining), rl.GetScreenWidth() - 240, 10, 20, rl.WHITE)
+		rl.DrawText(rl.TextFormat("$%d", state.money), rl.GetScreenWidth() - 240, 40, 20, rl.WHITE)
+		rl.DrawText(rl.TextFormat("HP: %d", state.cometHealth), rl.GetScreenWidth() - 240, 70, 20, rl.WHITE)
 	}
 
 	if state.buildMode {
-		test_draw_build_mode(state)
 		draw_build_mode(state)
 	}
 }
 
-// TODO: Use a ray cast to snap the tower to the comet's edges. I'm too tired to process this right now.
-test_draw_build_mode :: proc(state: GameState) {
-	buildPos := state.buildCursor
-	rl.DrawRectangleLinesEx({buildPos.x - 8, buildPos.y - 8, 16, 16}, 1.5, rl.GREEN)
-}

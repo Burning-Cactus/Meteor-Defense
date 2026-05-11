@@ -8,6 +8,7 @@ TowerStats :: struct {
 	// Number of seconds between each attack
 	attack_cooldown: f32,
 	draw: proc(t: Tower, color: rl.Color),
+	cost: int,
 }
 
 Tower :: struct {
@@ -20,6 +21,7 @@ laserTowerStats := TowerStats {
 	shape = Rect{{48, 48}},
 	draw = drawTower,
 	attack_cooldown = 2,
+	cost = 5,
 }
 
 update_towers :: proc(state: ^GameState, delta: f32) {

@@ -29,3 +29,7 @@ get_normalized_vector_facing_target :: proc(base: Vec2, target: Vec2) -> Vec2 {
 	return difference / distance
 }
 
+angle_facing ::proc(from:Vec2, to:Vec2) -> f32 {
+	facingVec := to - from
+	return -math.atan(facingVec.y / facingVec.x)
+}
