@@ -6,11 +6,36 @@ import "core:math/rand"
 // Different meteors will have different path strategies in the future.
 Meteor :: struct {
 	using entity: Entity,
+	health: i32,
+	stats: ^MeteorStats,
 }
 
 MeteorStats :: struct {
+	max_health: i32,
+	power: i32,
 	speed: f32,
 	rot_speed: f32,
+	shape: Shape,
+}
+
+meteor_stats: [dynamic]MeteorStats
+
+init_meteors :: proc() {
+	append(&meteor_stats, MeteorStats{
+		speed = 80,
+		rot_speed = 0,
+		shape = Circle{24},
+		max_health = 1,
+		power = 1,
+	})
+
+	append(&meteor_stats, MeteorStats{
+		speed = 120,
+		rot_speed = 0.8,
+		shape = Rect{{32,32}},
+		max_health = 2,
+		power = 2,
+	})
 }
 
 update_meteors :: proc(state: ^GameState, delta: f32) {
@@ -19,7 +44,7 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 		meteor := &state.meteors[i]
 		if !meteor.alive do continue
 
-		//meteor.rot += delta
+		meteor.rot += meteor.stats.rot_speed * delta
 		meteor.pos += meteor.velocity * delta
 		if check_collision(meteor^, state.comet) {
 			state.cometHealth -= 1
@@ -51,11 +76,14 @@ spawn_group :: proc(state: ^GameState, spawn_pos: Vec2) {
 	spawn_count := rand.int31_max(5) + 1
 	for i in 0..<spawn_count {
 		offset_pos := Vec2{spawn_pos.x + f32(i) * 50, spawn_pos.y}
+		stats := meteor_stats[rand.uint32_max(u32(len(meteor_stats)))]
 		append(&state.meteors, Meteor{
 			pos = offset_pos,
-			velocity = get_normalized_vector_facing_target(offset_pos, state.comet.pos) * 80,
-			shape = Circle{32},
+			velocity = get_normalized_vector_facing_target(offset_pos, state.comet.pos) * stats.speed,
+			shape = stats.shape,
 			alive = true,
+			health = stats.max_health,
+			stats = &stats,
 		})
 	}
 }

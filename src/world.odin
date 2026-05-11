@@ -40,7 +40,10 @@ game_loop :: proc(delta:f32) {
 			meteor := &state.meteors[j]
 			if check_collision(projectile^, meteor^) {
 				projectile.alive = false
-				meteor.alive = false
+				meteor.health -= 1
+				if meteor.health <= 0 {
+					meteor.alive = false
+				}
 			}
 		}
 	}
@@ -134,4 +137,3 @@ draw_game_screen :: proc(state: ^GameState) {
 		draw_build_mode(state)
 	}
 }
-
