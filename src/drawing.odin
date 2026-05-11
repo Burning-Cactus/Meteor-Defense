@@ -1,6 +1,7 @@
 package game
 import rl "vendor:raylib"
 import "core:math"
+import "core:math/rand"
 
 line_thickness :: 3.0
 line_resolution ::  12/*lines per 100 pixels*/ / 100.0
@@ -78,6 +79,40 @@ draw_rect :: proc(pos:Vec2, size:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) 
 	draw_line(d, a, col, scale_hint)
 }
 
+
+draw_star :: proc(pos:Vec2, rot:f32, points:i32, radius:f32, sharpness:f32, col:ThemeColor, scale_hint:f32) {
+	inner_radius := radius * (1.0 - clamp(sharpness, f32(0), f32(1)))
+	sector := math.TAU / f32(points)
+	for i in 0..<points {
+		outer_angle := rot + f32(i) * sector
+		inner_angle := outer_angle + sector * 0.5
+		outer      := pos + unit_vector(outer_angle) * radius
+		inner      := pos + unit_vector(inner_angle) * inner_radius
+		next_outer := pos + unit_vector(outer_angle + sector) * radius
+		draw_line(outer, inner, col, scale_hint)
+		draw_line(inner, next_outer, col, scale_hint)
+	}
+}
+
+draw_random_convex_polygon :: proc(pos:Vec2, rot:f32, points:i32, width_approx:f32, height_approx:f32, seed:u64, col:ThemeColor, scale_hint:f32) {
+	rng_state := rand.create(seed)
+	rng := rand.default_random_generator(&rng_state)
+	verts := make([]Vec2, points, context.temp_allocator)
+	a := width_approx / 2.0
+	b := height_approx / 2.0
+	sector := math.TAU / f32(points)
+	for i in 0..<points {
+		// Constrain each angle to its own sector to guarantee convexity
+		angle := rot + f32(i) * sector + rand.float32(rng) * sector * 0.8
+		cos_a := math.cos(angle)
+		sin_a := math.sin(angle)
+		ellipse_r := (a * b) / math.sqrt(b*b*cos_a*cos_a + a*a*sin_a*sin_a)
+		verts[i] = pos + unit_vector(angle) * ellipse_r * (0.7 + rand.float32(rng) * 0.3)
+	}
+	for i in 0..<points {
+		draw_line(verts[i], verts[(i + 1) % points], col, scale_hint)
+	}
+}
 
 draw_shape ::proc(s:Drawshape, col:ThemeColor, scale_hint:f32) {
 	switch s.type {

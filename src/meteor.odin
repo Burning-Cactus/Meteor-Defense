@@ -20,7 +20,7 @@ MeteorStats :: struct {
 meteor_stats := []MeteorStats{
 	MeteorStats{
 		speed = 80,
-		rot_speed = 0,
+		rot_speed = 0.2,
 		shape = Circle{24},
 		max_health = 1.0,
 		power = 1.0,
@@ -32,6 +32,19 @@ meteor_stats := []MeteorStats{
 		max_health = 2.0,
 		power = 2.0,
 	},
+}
+
+draw_small_meteor :: proc(e: ^Entity, state: ^GameState) {
+	scale_hint: f32 = 1.0
+	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
+	draw_star(e.pos, e.rot, 5, e.shape.(Circle).radius, 0.6, e.col, scale_hint)
+}
+
+draw_large_meteor :: proc(e: ^Entity, state: ^GameState) {
+	scale_hint: f32 = 1.0
+	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
+	r := e.shape.(Circle).radius
+	draw_random_convex_polygon(e.pos, e.rot, 7, r * 2, r * 2, 42, e.col, scale_hint)
 }
 
 update_meteors :: proc(state: ^GameState, delta: f32) {
@@ -76,16 +89,18 @@ spawn_group :: proc(state: ^GameState, spawn_pos: Vec2) {
 	spawn_count := rand.int31_max(5) + 1
 	for i in 0..<spawn_count {
 		offset_pos := Vec2{spawn_pos.x + f32(i) * 50, spawn_pos.y}
-		stats := &meteor_stats[rand.uint32_max(u32(len(meteor_stats)))]
+		stats_idx := rand.uint32_max(u32(len(meteor_stats)))
+		stats := &meteor_stats[stats_idx]
+		draw_proc := draw_large_meteor if stats_idx == 0 else draw_small_meteor
 		append(&state.meteors, Meteor{
 			pos = offset_pos,
 			velocity = get_normalized_vector_facing_target(offset_pos, state.comet.pos) * stats.speed,
 			shape = stats.shape,
 			col = .RED,
 			alive = true,
-			hp= stats.max_health,
+			hp = stats.max_health,
 			stats = stats,
-			draw = draw_shooting_star,
+			draw = draw_proc,
 		})
 	}
 }
