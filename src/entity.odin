@@ -23,11 +23,6 @@ Entity :: struct {
 	alive: bool,
 }
 
-// Different meteors will have different path strategies in the future.
-Meteor :: struct {
-	using entity: Entity,
-}
-
 // --- Collision ---
 
 rl_rect ::proc(e:Entity, r:Rect) -> rl.Rectangle {

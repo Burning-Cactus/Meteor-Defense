@@ -26,7 +26,6 @@ game_loop :: proc(delta:f32) {
 
 	handle_spawns(&state, delta)
 
-
 	// Handle entities
 	handle_input()
 	player := &state.player
@@ -50,17 +49,7 @@ game_loop :: proc(delta:f32) {
 			}
 		}
 	}
-	for i in 0..<meteorCount {
-		meteor := &state.meteors[i]
-		if !meteor.alive do continue
-		meteor.pos += meteor.velocity * delta
-		if check_collision(meteor^, state.comet) {
-			state.cometHealth -= 1
-			fmt.printf("Remaining comet health: %d\n", state.cometHealth)
-			meteor.alive = false
-		}
-	}
-
+	update_meteors(&state, delta)
 	update_towers(&state, delta)
 
 	// Loop backwards to clear the array.
@@ -102,29 +91,6 @@ handle_input :: proc() {
 		rl.PlaySound(laserSound)
 	}
 }
-spawnTimer: f32
-handle_spawns :: proc(state: ^GameState, delta: f32) {
-	spawnTimer -= delta
-	if spawnTimer <= 0 {
-		// Spawn meteors
-		spawners := [3]Vec2{
-			{50, 50},
-			{700, 100},
-			{600, 700},
-		}
-		for i in 0..<len(spawners) {
-			position := spawners[i]
-			append(&state.meteors, Meteor{
-				pos = position,
-				velocity = get_normalized_vector_facing_target(position, state.comet.pos) * 80,
-				shape = Circle{32},
-				alive = true,
-			})
-		}
-		spawnTimer = 1.5
-	}
-}
-
 
 find_intersection_point_on_entity :: proc(startPos: Vec2, target: Entity) -> (collisionPoint: Vec2) {
 	rayVec := target.pos - startPos
