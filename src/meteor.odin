@@ -2,7 +2,6 @@ package game
 
 import "core:math"
 import "core:math/rand"
-import "core:fmt"
 
 // Different meteors will have different path strategies in the future.
 Meteor :: struct {
@@ -43,13 +42,20 @@ handle_spawns :: proc(state: ^GameState, delta: f32) {
 		r := rand.float32() * 2 - 1
 		spawn_angle := r * math.PI + state.comet.rot
 		spawn_pos := Vec2{math.cos(spawn_angle), math.sin(spawn_angle)} * spawn_radius + state.comet.pos
-		// Spawn meteors
+		spawn_group(state, spawn_pos)
+		spawn_timer -= spawn_cooldown
+	}
+}
+
+spawn_group :: proc(state: ^GameState, spawn_pos: Vec2) {
+	spawn_count := rand.int31_max(5) + 1
+	for i in 0..<spawn_count {
+		offset_pos := Vec2{spawn_pos.x + f32(i) * 50, spawn_pos.y}
 		append(&state.meteors, Meteor{
-			pos = spawn_pos,
-			velocity = get_normalized_vector_facing_target(spawn_pos, state.comet.pos) * 80,
+			pos = offset_pos,
+			velocity = get_normalized_vector_facing_target(offset_pos, state.comet.pos) * 80,
 			shape = Circle{32},
 			alive = true,
 		})
-		spawn_timer = 0
 	}
 }
