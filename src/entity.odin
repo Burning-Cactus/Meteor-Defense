@@ -93,7 +93,7 @@ draw_shooting_star :: proc(e: ^Entity, color: rl.Color) {
 	}
 }
 
-draw_shape ::proc(s:Shape, pos:Vec2, rot:f32, color:rl.Color) {
+draw_enity_shape ::proc(s:Shape, pos:Vec2, rot:f32, color:rl.Color) {
 	switch _ in s {
 	case Rect:
 		r := s.(Rect)
@@ -117,8 +117,8 @@ draw_debug := false
 draw_entity :: proc(e: ^Entity, color: rl.Color) {
 	if e.draw != nil {
 		e.draw(e, color)
-		if draw_debug do draw_shape(e.shape, e.pos, e.rot, rl.MAGENTA)
+		if draw_debug do draw_enity_shape(e.shape, e.pos, e.rot, rl.MAGENTA)
 	} else {
-		draw_shape(e.shape, e.pos, e.rot, color)
+		draw_enity_shape(e.shape, e.pos, e.rot, color)
 	}
 }
