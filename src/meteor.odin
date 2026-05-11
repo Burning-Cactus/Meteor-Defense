@@ -3,39 +3,35 @@ package game
 import "core:math"
 import "core:math/rand"
 
-// Different meteors will have different path strategies in the future.
 Meteor :: struct {
 	using entity: Entity,
-	health: i32,
 	stats: ^MeteorStats,
 }
 
 MeteorStats :: struct {
-	max_health: i32,
-	power: i32,
+	max_health: f32,
+	power: f32,
 	speed: f32,
 	rot_speed: f32,
 	shape: Shape,
 }
 
-meteor_stats: [dynamic]MeteorStats
 
-init_meteors :: proc() {
-	append(&meteor_stats, MeteorStats{
+meteor_stats := []MeteorStats{
+	MeteorStats{
 		speed = 80,
 		rot_speed = 0,
 		shape = Circle{24},
-		max_health = 1,
-		power = 1,
-	})
-
-	append(&meteor_stats, MeteorStats{
+		max_health = 1.0,
+		power = 1.0,
+	},
+	MeteorStats{
 		speed = 120,
 		rot_speed = 0.8,
 		shape = Rect{{32,32}},
-		max_health = 2,
-		power = 2,
-	})
+		max_health = 2.0,
+		power = 2.0,
+	},
 }
 
 update_meteors :: proc(state: ^GameState, delta: f32) {
@@ -47,7 +43,8 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 		meteor.rot += meteor.stats.rot_speed * delta
 		meteor.pos += meteor.velocity * delta
 		if check_collision(meteor^, state.comet) {
-			state.cometHealth -= 1
+			state.comet.hp -= 1.0
+			state.comet.hp -= meteor.stats.power //FIXME: this does nothing, why?
 			meteor.alive = false
 		}
 	}
@@ -82,7 +79,7 @@ spawn_group :: proc(state: ^GameState, spawn_pos: Vec2) {
 			velocity = get_normalized_vector_facing_target(offset_pos, state.comet.pos) * stats.speed,
 			shape = stats.shape,
 			alive = true,
-			health = stats.max_health,
+			hp= stats.max_health,
 			stats = &stats,
 		})
 	}

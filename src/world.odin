@@ -40,8 +40,8 @@ game_loop :: proc(delta:f32) {
 			meteor := &state.meteors[j]
 			if check_collision(projectile^, meteor^) {
 				projectile.alive = false
-				meteor.health -= 1
-				if meteor.health <= 0 {
+				meteor.hp -= 1.0
+				if meteor.hp <= 0 {
 					meteor.alive = false
 				}
 			}
@@ -123,14 +123,6 @@ draw_game_screen :: proc(state: ^GameState) {
 	projectileCount := len(state.projectiles)
 	for i in 0..<projectileCount {
 		draw_entity(state.projectiles[i], rl.GRAY)
-	}
-
-	if state.gameOver {
-		rl.DrawText("VICTORY", rl.GetScreenWidth() / 2 - 240, rl.GetScreenHeight() / 2 - 50, 64, rl.LIGHTGRAY)
-	} else {
-		rl.DrawText(rl.TextFormat("Time left: %.0f seconds", state.timeRemaining), rl.GetScreenWidth() - 240, 10, 20, rl.WHITE)
-		rl.DrawText(rl.TextFormat("$%d", state.money), rl.GetScreenWidth() - 240, 40, 20, rl.WHITE)
-		rl.DrawText(rl.TextFormat("HP: %d", state.cometHealth), rl.GetScreenWidth() - 240, 70, 20, rl.WHITE)
 	}
 
 	if state.buildMode {

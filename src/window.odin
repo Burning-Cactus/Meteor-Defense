@@ -18,7 +18,6 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	towers: [dynamic]Tower,
 	projectiles: [dynamic]Entity,
 	comet: Entity,
-	cometHealth: i32,
 
 	gameTime: f64,
 	timeRemaining: f32,
@@ -29,7 +28,7 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	cursor: Vec2,
 }
 
-state: GameState = { //?
+state: GameState = {
 	player = Entity{
 		label = "jelly",
 		pos = {700, 600},
@@ -38,15 +37,13 @@ state: GameState = { //?
 	},
 	comet = Entity{
 		label = "comet",
+		hp = 20.0,
 		pos = {400, 300},
 		shape = Circle{200},
 	},
-	cometHealth = 20,
 	timeRemaining = 60,
 	money = 20,
 }
-
-
 
 draw_title_screen :: proc() {
 	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
@@ -72,8 +69,6 @@ init :: proc() {
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
 	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
-
-	init_meteors()
 }
 
 update :: proc() {
@@ -81,6 +76,9 @@ update :: proc() {
 	delta := rl.GetFrameTime()
 
 	rl.BeginDrawing()
+	defer free_all(context.temp_allocator) //?
+	defer rl.EndDrawing()
+
 	rl.ClearBackground(rl.BLACK)
 	switch currentScreen {
 	case .Title:
@@ -99,10 +97,15 @@ update :: proc() {
 			}
 		}
 		draw_game_screen(&state)
+		if state.gameOver {
+			rl.DrawText("VICTORY", rl.GetScreenWidth() / 2 - 240, rl.GetScreenHeight() / 2 - 50, 64, rl.LIGHTGRAY)
+		} else {
+			rl.DrawText(rl.TextFormat("Time left: %.0f seconds", state.timeRemaining), rl.GetScreenWidth() - 240, 10, 20, rl.WHITE)
+			rl.DrawText(rl.TextFormat("$%d", state.money), rl.GetScreenWidth() - 240, 40, 20, rl.WHITE)
+			rl.DrawText(rl.TextFormat("HP: %.0f", state.comet.hp), rl.GetScreenWidth() - 240, 70, 20, rl.WHITE)
+		}
+
 	}
-	rl.EndDrawing()
-	// Anything allocated using temp allocator is invalid after this.
-	free_all(context.temp_allocator) //?
 }
 
 

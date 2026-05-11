@@ -20,6 +20,11 @@ Entity :: struct {
 	velocity: Vec2,
 	shape: Shape,
 	rot: f32,
+
+	hp: f32,
+
+	draw: proc(e: Entity, color: rl.Color),
+
 	alive: bool,
 }
 
@@ -89,5 +94,8 @@ draw_shape ::proc(s:Shape, pos:Vec2, rot:f32, color:rl.Color) {
 
 }
 draw_entity :: proc(e: Entity, color: rl.Color) {
+	if e.draw != nil {
+		e.draw(e, color)
+	}
 	draw_shape(e.shape, e.pos, e.rot, color)
 }
