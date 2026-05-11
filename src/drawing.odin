@@ -3,7 +3,7 @@ import rl "vendor:raylib"
 import "core:math"
 
 line_thickness :: 3.0
-line_resolution ::  5/*lines per 100 pixels*/ / 100.0
+line_resolution ::  12/*lines per 100 pixels*/ / 100.0
 
 shape_T :: enum {
 	DOT, LINE, CIRCLE,
@@ -37,8 +37,14 @@ set_theme ::proc() { //if there's a better way to do this I'd love to hear it
 	theme[.DEBUG] =  	rl.MAGENTA
 }
 
-// scale_hint indicates how large the shape will be drawn in screen, relative to its computer size (i.e. the zoom)
-// used for constant line thickness and controlling resolution
+// --- Drawing Utilities ---
+
+segments :: proc(radius:f32) -> i32{
+	return  max(4, i32(math.ceil(math.TAU * radius * line_resolution)))
+}
+
+// --- Primative Shapes ---
+
 draw_dot :: proc(pos:Vec2, col:ThemeColor, scale_hint:f32) {
 	rl.DrawCircleV(pos, line_thickness / scale_hint / 2.0, theme[col])
 }
@@ -49,9 +55,15 @@ draw_line :: proc(start:Vec2, end:Vec2, col:ThemeColor, scale_hint:f32) {
 }
 draw_circle :: proc(pos:Vec2, radius:f32, col:ThemeColor, scale_hint:f32) {
 	t :f32 = line_thickness/2.0/scale_hint
-	segments := max(3, int(math.ceil(math.TAU * radius * scale_hint * line_resolution)))
-	rl.DrawRing(pos, radius-t, radius+t, 0.0, 360.0, i32(segments), theme[col])
+	scaled_radius := radius * scale_hint
+	if scaled_radius < line_thickness * 1.2 {
+		draw_dot(pos, col, scale_hint)
+	} else {
+		rl.DrawRing(pos, radius-t, radius+t, 0.0, 360.0, segments(radius * scale_hint), theme[col])
+	}
 }
+
+// --- Compound Shapes ---
 
 draw_rect :: proc(pos:Vec2, size:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) {
 	offset := size / 2
@@ -65,6 +77,7 @@ draw_rect :: proc(pos:Vec2, size:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) 
 	draw_line(c, d, col, scale_hint)
 	draw_line(d, a, col, scale_hint)
 }
+
 
 draw_shape ::proc(s:Drawshape, col:ThemeColor, scale_hint:f32) {
 	switch s.type {
