@@ -102,12 +102,7 @@ find_intersection_point_on_entity :: proc(startPos: Vec2, target: Entity) -> (co
 }
 
 draw_game_screen :: proc(state: ^GameState) {
-	// This is just for verifying that collision checks work. Feel free to rip out this if statement for the comet color.
-	if check_collision(state.comet, state.player) {
-		draw_entity(&state.comet, rl.RED)
-	} else {
-		draw_entity(&state.comet, rl.WHITE)
-	}
+	draw_entity(&state.comet, rl.WHITE)
 	draw_entity(&state.player, rl.WHITE)
 
 	meteorCount := len(state.meteors)

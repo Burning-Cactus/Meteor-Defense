@@ -4,12 +4,16 @@ package game
 import fmt "core:fmt"
 import rl "vendor:raylib"
 import "core:c"
+import "core:math"
 
 Screen :: enum{Title, Game}
 currentScreen := Screen.Game
 
 run := true
 paused: bool
+
+camera: rl.Camera2D
+prev_window_size: Vec2
 
 GameState :: struct { //TODO: split some of this into new WorldState
 	player: Entity,
@@ -31,18 +35,24 @@ GameState :: struct { //TODO: split some of this into new WorldState
 state: GameState = {
 	player = Entity{
 		label = "jelly",
-		pos = {700, 600},
+		pos = {200, -100},
 		shape = Rect{32},
 		alive = true,
 	},
 	comet = Entity{
 		label = "comet",
 		hp = 20.0,
-		pos = {400, 300},
 		shape = Circle{200},
 	},
 	timeRemaining = 60,
 	money = 20,
+}
+
+pan_to_new_window_size :: proc() {
+	curr_size := Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())}
+	delta := curr_size - prev_window_size
+	camera.target -= delta * (0.5 / camera.zoom)
+	prev_window_size = curr_size
 }
 
 draw_title_screen :: proc() {
@@ -66,17 +76,41 @@ init :: proc() {
 	// Disable quiting with esc key.
 	rl.SetExitKey(.KEY_NULL)
 
+	camera.zoom = 1.0
+	pan_to_new_window_size()
+
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
 	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
 }
 
 update :: proc() {
-	state.cursor = Vec2{f32(rl.GetMouseX()), f32(rl.GetMouseY())} // we can transform this with camera later
 	delta := rl.GetFrameTime()
 
+	if rl.IsWindowResized() {
+		pan_to_new_window_size()
+	}
+
+	// Pan with middle mouse button
+	if rl.IsMouseButtonDown(.MIDDLE) {
+		mouse_delta := rl.GetMouseDelta()
+		camera.target -= Vec2{mouse_delta.x, mouse_delta.y} * (1.0 / camera.zoom)
+	}
+
+	// Zoom to cursor with scroll wheel
+	wheel := rl.GetMouseWheelMove()
+	if wheel != 0 {
+		mouse_world := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
+		camera.offset = rl.GetMousePosition()
+		camera.target = mouse_world
+		scale := f32(0.2) * wheel
+		camera.zoom = clamp(math.exp_f32(math.ln_f32(camera.zoom) + scale), f32(0.125), f32(64.0))
+	}
+
+	state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
+
 	rl.BeginDrawing()
-	defer free_all(context.temp_allocator) //?
+	defer free_all(context.temp_allocator)
 	defer rl.EndDrawing()
 
 	rl.ClearBackground(rl.BLACK)
@@ -96,7 +130,9 @@ update :: proc() {
 				state.gameOver = true
 			}
 		}
+		rl.BeginMode2D(camera)
 		draw_game_screen(&state)
+		rl.EndMode2D()
 		if state.gameOver {
 			rl.DrawText("VICTORY", rl.GetScreenWidth() / 2 - 240, rl.GetScreenHeight() / 2 - 50, 64, rl.LIGHTGRAY)
 		} else {
@@ -117,6 +153,7 @@ start_game :: proc() {
 // `rl.SetWindowSize` call if you don't want a resizable game.
 parent_window_size_changed :: proc(w, h: int) {
 	rl.SetWindowSize(c.int(w), c.int(h))
+	pan_to_new_window_size()
 }
 
 should_run :: proc() -> bool {
