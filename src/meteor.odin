@@ -3,50 +3,59 @@ package game
 import "core:math"
 import "core:math/rand"
 
+MeteorType :: enum {SHOOTING_STAR, METEOROID, ASTEROID}
 Meteor :: struct {
 	using entity: Entity,
-	stats: ^MeteorStats,
+	type : MeteorType,
 }
 
-MeteorStats :: struct {
-	max_health: f32,
-	power: f32,
-	speed: f32,
-	rot_speed: f32,
-	shape: Shape,
-	draw: proc(e: ^Entity, state: ^GameState),
+// These are somewhat high-level and open to interpretation
+MeteorArchetype :: struct {
+	speed, spin, size, health, power:f32,
+	reward:u32,
 }
-
-meteor_stats := []MeteorStats{
-	MeteorStats{
-		speed = 80,
-		rot_speed = 0.2,
-		shape = Circle{24},
-		max_health = 1.0,
-		power = 1.0,
-		draw = draw_large_meteor,
-	},
-	MeteorStats{
+meteor_archetypes := [MeteorType]MeteorArchetype{
+	.SHOOTING_STAR = {
 		speed = 120,
-		rot_speed = 0.8,
-		shape = Circle{16},
-		max_health = 2.0,
-		power = 2.0,
-		draw = draw_small_meteor,
+		spin = 0.8,
+		size = 16,
+		health = 1.0,
+		power = 1.0,
+	},
+	.METEOROID = {
+		speed = 80,
+		spin = 0.2,
+		size = 24,
+		health = 2.0,
+		power = 1.0,
+	},
+	.ASTEROID = {
+		speed = 30,
+		spin = 0.1,
+		size = 128,
+		health = 12.0,
+		power = 5.0,
 	},
 }
 
-draw_small_meteor :: proc(e: ^Entity, state: ^GameState) {
+draw_meteor :: proc(m: ^Meteor, state: ^GameState) {
 	scale_hint: f32 = 1.0
 	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
-	draw_star(e.pos, e.rot, 5, e.shape.(Circle).radius, 0.6, e.col, scale_hint)
+	switch m.type {
+	case .SHOOTING_STAR:
+		draw_star(m.pos, m.rot, 5, entity_size(m)/2, 0.6, m.col, scale_hint)
+	case .METEOROID:
+		r := entity_bounds(m)
+		draw_random_convex_polygon(m.pos, m.rot, 7, r.x, r.y, m.id, m.col, scale_hint)
+	case .ASTEROID:
+		r := entity_bounds(m)
+		draw_random_convex_polygon(m.pos, m.rot, 17, r.x, r.y, m.id, m.col, scale_hint)
+	}
 }
 
 draw_large_meteor :: proc(e: ^Entity, state: ^GameState) {
 	scale_hint: f32 = 1.0
 	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
-	r := e.shape.(Circle).radius
-	draw_random_convex_polygon(e.pos, e.rot, 7, r * 2, r * 2, 42, e.col, scale_hint)
 }
 
 update_meteors :: proc(state: ^GameState, delta: f32) {
@@ -55,20 +64,15 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 		meteor := &state.meteors[i]
 		if !meteor.alive do continue
 
-		if meteor.stats.rot_speed != 0.0{
-			meteor.rot += meteor.stats.rot_speed * delta
-		} else {
-			meteor.rot = -vec_angle(meteor.velocity)
-		}
+		meteor.rot += meteor.rot_speed * delta
 		meteor.pos += meteor.velocity * delta
+
 		if check_collision(meteor^, state.comet) {
-			state.comet.hp -= meteor.stats.power //FIXME: this doesn't work
+			state.comet.hp -= meteor.power
 			meteor.alive = false
 		}
 	}
 }
-
-// Spawns are done on a circle on the outside of the battlefield.
 
 spawn_cooldown: f32 = 1.5
 spawn_timer: f32
@@ -87,25 +91,23 @@ handle_spawns :: proc(state: ^GameState, delta: f32) {
 	}
 }
 
-spawn_meteor :: proc(state: ^GameState, pos: Vec2, stats: ^MeteorStats) {
-	spawn(&state.meteors, Meteor{
-		pos = pos,
-		velocity = get_normalized_vector_facing_target(pos, state.comet.pos) * stats.speed,
-		shape = stats.shape,
+spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
+	preset := meteor_archetypes[type]
+	spawn(&state.meteors, pos, Meteor{
 		col = .RED,
-		alive = true,
-		hp = stats.max_health,
-		stats = stats,
-		draw = stats.draw,
-		reward = 1,
 		death_sfx = rockDestroyedSound,
+		draw = draw_meteor,
+		shape = Circle{preset.size}, //TODO will need more complicated solution for polygonal Asteroid
+		hp = preset.health,
+		value = preset.reward,
+		velocity = get_normalized_vector_facing_target(pos, state.comet.pos) * preset.speed,
 	})
 }
 
 spawn_group :: proc(state: ^GameState, spawn_pos: Vec2) {
 	spawn_count := rand.int31_max(5) + 1
 	for i in 0..<spawn_count {
-		stats := &meteor_stats[rand.uint32_max(u32(len(meteor_stats)))]
-		spawn_meteor(state, Vec2{spawn_pos.x + f32(i) * 50, spawn_pos.y}, stats)
+		type:=rand.choice_enum(MeteorType)
+		spawn_meteor(state, Vec2{spawn_pos.x + f32(i) * 50, spawn_pos.y}, type)
 	}
 }

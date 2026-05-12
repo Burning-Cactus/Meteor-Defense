@@ -13,31 +13,34 @@ Circle :: struct {
 Shape :: union { Rect, Circle }
 
 Entity :: struct {
-	id: int,
+	id: u64,
 	label : string,
 	pos: Vec2,
 	velocity: Vec2,
-	shape: Shape,
 	rot: f32,
+	rot_speed: f32,
+	shape: Shape,
 
 	hp: f32,
+	power: f32,
 	col: ThemeColor,
 
 	draw: proc(e: ^Entity, state: ^GameState),
 
 	alive: bool,
-	reward: int,
+	value: u32,
 	death_sfx: rl.Sound,
 }
 
 // --- Utils ---
 
-next_entity_id: int
-
-spawn :: proc(list: ^[dynamic]$T, entity: T) -> ^T {
+next_entity_id: u64
+spawn :: proc(list: ^[dynamic]$T, pos: Vec2, entity: T) -> ^T {
 	e := entity
+	e.pos = pos
 	e.id = next_entity_id
 	next_entity_id += 1
+	e.alive = true
 	append(list, e)
 	return &list[len(list) - 1]
 }
@@ -49,6 +52,28 @@ remove_dead :: proc(list: ^[dynamic]$T) {
 			unordered_remove(list, i)
 		}
 	}
+}
+
+entity_bounds :: proc(e: ^Entity) -> Vec2 {
+	switch _ in e.shape {
+	case Rect:
+		return e.shape.(Rect).size
+	case Circle:
+		x := e.shape.(Circle).radius * 2.0
+		return {x,x}
+	}
+	return {0,0}
+}
+
+entity_size :: proc(e: ^Entity) -> f32 {
+	switch _ in e.shape {
+	case Rect:
+		r := e.shape.(Rect).size
+		return max(r.y, r.y)
+	case Circle:
+		return e.shape.(Circle).radius * 2.0
+	}
+	return 0
 }
 
 // --- Collision ---

@@ -26,7 +26,7 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	gameTime: f64,
 	timeRemaining: f32,
 	gameOver: bool,
-	money: int,
+	money: u32,
 
 	buildMode: bool,
 	cursor: Vec2,

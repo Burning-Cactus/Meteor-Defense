@@ -11,12 +11,10 @@ laserSound: rl.Sound
 rockDestroyedSound: rl.Sound
 
 spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
-	spawn(&state.projectiles, Entity{
-		pos = pos,
+	spawn(&state.projectiles, pos, Entity{
 		velocity = velocity,
 		shape = Circle{12},
 		col = .MID,
-		alive = true,
 	})
 	rl.PlaySound(laserSound)
 }
@@ -54,7 +52,7 @@ game_loop :: proc(delta:f32) {
 				meteor.hp -= 1.0
 				if meteor.hp <= 0 {
 					meteor.alive = false
-					state.money += meteor.reward
+					state.money += meteor.value
 				}
 			}
 		}
