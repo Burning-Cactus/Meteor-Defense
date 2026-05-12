@@ -79,7 +79,6 @@ init :: proc() {
 
 	camera.zoom = 1.0
 	pan_to_new_window_size()
-	set_theme()
 
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")

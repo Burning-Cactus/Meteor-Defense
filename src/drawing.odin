@@ -26,16 +26,15 @@ ThemeColor :: enum {
 	DEBUG,
 }
 
-theme :[ThemeColor] rl.Color
-set_theme ::proc() { //if there's a better way to do this I'd love to hear it
-	theme[.FILL] =    	rl.BLACK
-	theme[.MID] =     	rl.GRAY
-	theme[.PRIMARY] =	rl.WHITE
-	theme[.RED] =     	rl.MAROON
-	theme[.BLUE] =    	rl.BLUE
-	theme[.CYAN] =    	rl.SKYBLUE
-	theme[.YELLOW] =  	rl.YELLOW
-	theme[.DEBUG] =  	rl.MAGENTA
+theme := [ThemeColor]rl.Color {
+	.FILL =   	rl.BLACK,
+	.MID =    	rl.GRAY,
+	.PRIMARY =	rl.WHITE,
+	.RED =    	rl.MAROON,
+	.BLUE =   	rl.BLUE,
+	.CYAN =   	rl.SKYBLUE,
+	.YELLOW = 	rl.YELLOW,
+	.DEBUG =  	rl.MAGENTA,
 }
 
 // --- Drawing Utilities ---
