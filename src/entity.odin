@@ -13,6 +13,7 @@ Circle :: struct {
 Shape :: union { Rect, Circle }
 
 Entity :: struct {
+	id: int,
 	label : string,
 	pos: Vec2,
 	velocity: Vec2,
@@ -25,6 +26,29 @@ Entity :: struct {
 	draw: proc(e: ^Entity, state: ^GameState),
 
 	alive: bool,
+	reward: int,
+	death_sfx: rl.Sound,
+}
+
+// --- Utils ---
+
+next_entity_id: int
+
+spawn :: proc(list: ^[dynamic]$T, entity: T) -> ^T {
+	e := entity
+	e.id = next_entity_id
+	next_entity_id += 1
+	append(list, e)
+	return &list[len(list) - 1]
+}
+
+remove_dead :: proc(list: ^[dynamic]$T) {
+	for i := len(list) - 1; i >= 0; i -= 1 {
+		if !list[i].alive {
+			if list[i].death_sfx.frameCount != 0 do rl.PlaySound(list[i].death_sfx)
+			unordered_remove(list, i)
+		}
+	}
 }
 
 // --- Collision ---
@@ -64,7 +88,7 @@ check_collision :: proc(a: Entity, b: Entity) -> bool {
 	return false  // One of the Entities has no shape?
 }
 
-check_collision_any :: proc(a: Entity, list:[dynamic]Tower) -> bool{ //HACK: this is supposed to be useable for all entities, not just towers
+check_collision_any :: proc(a: Entity, list: [dynamic]$T) -> bool {
 	for b in list {
 		if check_collision(a, b) do return true
 	}
