@@ -10,11 +10,11 @@ Meteor :: struct {
 }
 
 // These are somewhat high-level and open to interpretation
-MeteorArchetype :: struct {
+MeteorPreset :: struct {
 	speed, spin, size, health, power:f32,
 	reward:u32,
 }
-meteor_archetypes := [MeteorType]MeteorArchetype{
+meteor_presets := [MeteorType]MeteorPreset{
 	.SHOOTING_STAR = {
 		speed = 120,
 		spin = 0.8,
@@ -95,13 +95,14 @@ handle_spawns :: proc(state: ^GameState, delta: f32) {
 }
 
 spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
-	preset := meteor_archetypes[type]
+	preset := meteor_presets[type]
 	spawn(&state.meteors, pos, Meteor{
 		col = .RED,
 		death_sfx = rockDestroyedSound,
 		draw = draw_meteor,
 		shape = Circle{preset.size}, //TODO: support polygonal asteroids
 		hp = preset.health,
+		rot_speed = preset.spin,
 		value = preset.reward,
 		power = preset.power,
 		velocity = get_normalized_vector_facing_target(pos, state.comet.pos) * preset.speed,
