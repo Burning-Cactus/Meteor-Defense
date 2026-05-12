@@ -2,7 +2,6 @@
 // Includes abstract definitions and more concrete specific entities; how they're drawn, and how they behave
 package game
 import rl "vendor:raylib"
-import "core:math"
 
 Rect :: struct {
 	size: Vec2,
@@ -73,28 +72,6 @@ check_collision_any :: proc(a: Entity, list:[dynamic]Tower) -> bool{ //HACK: thi
 }
 
 // --- Drawing ---
-
-draw_shooting_star :: proc(e: ^Entity, state: ^GameState) {
-	scale_hint: f32 = 1.0
-	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
-	segment :: math.TAU/5.0
-	size:f32
-	switch _ in e.shape{
-	case Rect:
-		size=e.shape.(Rect).size.x * 0.7
-	case Circle:
-		size=e.shape.(Circle).radius * 1.6
-	}
-	rotate := math.PI / -2.0 - e.rot
-	for i in 0..<5 {
-		draw_line(
-			e.pos + unit_vector(segment * cast(f32)i + rotate) * size,
-			e.pos + unit_vector(segment * (cast(f32)i+2.0) + rotate) * size,
-			e.col,
-			scale_hint,
-		)
-	}
-}
 
 draw_enity_shape ::proc(s:Shape, pos:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) {
 	switch _ in s {
