@@ -6,7 +6,7 @@ TowerStats :: struct {
 	shape: Shape,
 	// Number of seconds between each attack
 	attack_cooldown: f32,
-	cost: int,
+	cost: u32,
 }
 
 Tower :: struct {

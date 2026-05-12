@@ -21,6 +21,7 @@ meteor_archetypes := [MeteorType]MeteorArchetype{
 		size = 16,
 		health = 1.0,
 		power = 1.0,
+		reward = 1,
 	},
 	.METEOROID = {
 		speed = 80,
@@ -28,6 +29,7 @@ meteor_archetypes := [MeteorType]MeteorArchetype{
 		size = 24,
 		health = 2.0,
 		power = 1.0,
+		reward = 2,
 	},
 	.ASTEROID = {
 		speed = 30,
@@ -35,6 +37,7 @@ meteor_archetypes := [MeteorType]MeteorArchetype{
 		size = 128,
 		health = 12.0,
 		power = 5.0,
+		reward = 10,
 	},
 }
 
@@ -76,7 +79,7 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 
 spawn_cooldown: f32 = 1.5
 spawn_timer: f32
-spawn_radius: f32 = 400
+spawn_radius: f32 = 1000
 
 handle_spawns :: proc(state: ^GameState, delta: f32) {
 	spawn_timer += delta
@@ -97,10 +100,12 @@ spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 		col = .RED,
 		death_sfx = rockDestroyedSound,
 		draw = draw_meteor,
-		shape = Circle{preset.size}, //TODO will need more complicated solution for polygonal Asteroid
+		shape = Circle{preset.size}, //TODO: support polygonal asteroids
 		hp = preset.health,
 		value = preset.reward,
+		power = preset.power,
 		velocity = get_normalized_vector_facing_target(pos, state.comet.pos) * preset.speed,
+		type = type,
 	})
 }
 
