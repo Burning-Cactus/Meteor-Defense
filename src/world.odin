@@ -10,6 +10,17 @@ Vec2 :: [2]f32
 laserSound: rl.Sound
 rockDestroyedSound: rl.Sound
 
+spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
+	spawn(&state.projectiles, Entity{
+		pos = pos,
+		velocity = velocity,
+		shape = Circle{12},
+		col = .MID,
+		alive = true,
+	})
+	rl.PlaySound(laserSound)
+}
+
 // I'm thinking particles can be handled later with an arena.
 game_loop :: proc(delta:f32) {
 	if rl.IsKeyPressed(.ONE) {
@@ -43,6 +54,7 @@ game_loop :: proc(delta:f32) {
 				meteor.hp -= 1.0
 				if meteor.hp <= 0 {
 					meteor.alive = false
+					state.money += meteor.reward
 				}
 			}
 		}
@@ -50,18 +62,9 @@ game_loop :: proc(delta:f32) {
 	update_meteors(&state, delta)
 	update_towers(&state, delta)
 
-	// Loop backwards to clear the array.
-	for i := meteorCount - 1; i >= 0; i -= 1 {
-		if !state.meteors[i].alive {
-			unordered_remove(&state.meteors, i)
-			rl.PlaySound(rockDestroyedSound)
-			state.money += 1
-		}
-	}
+	remove_dead(&state.meteors)
 	// TODO: Define the boundaries of the map, and kill the bullets when they exit.
-	for i := projectileCount - 1; i >= 0; i -= 1 {
-		if !state.projectiles[i].alive do unordered_remove(&state.projectiles, i)
-	}
+	remove_dead(&state.projectiles)
 
 }
 
@@ -76,13 +79,7 @@ handle_input :: proc() {
 	if rl.IsKeyDown(.S) do player.velocity.y += playerSpeed
 	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) {
 		bulletSpeed :: 500
-		append(&state.projectiles, Entity{
-			pos = player.pos + state.lookVec * 30,
-			velocity = state.lookVec * bulletSpeed,
-			shape = Circle {12},
-			alive = true,
-		})
-		rl.PlaySound(laserSound)
+		spawn_bullet(&state, player.pos + state.lookVec * 30, state.lookVec * bulletSpeed)
 	}
 }
 
@@ -106,18 +103,13 @@ draw_game_screen :: proc(state: ^GameState) {
 	draw_entity(&state.comet, state)
 	draw_entity(&state.player, state)
 
-	meteorCount := len(state.meteors)
-	for i in 0..<meteorCount {
+	for i in 0..<len(state.meteors) {
 		draw_entity(&state.meteors[i].entity, state)
 	}
-	towerCount := len(state.towers)
-	for i in 0..<towerCount {
-		tower := &state.towers[i]
-		tower.stats.draw(tower, state)
+	for i in 0..<len(state.towers) {
+		draw_entity(&state.towers[i].entity, state)
 	}
-
-	projectileCount := len(state.projectiles)
-	for i in 0..<projectileCount {
+	for i in 0..<len(state.projectiles) {
 		draw_entity(&state.projectiles[i], state)
 	}
 

@@ -1,13 +1,11 @@
 package game
 
-import rl "vendor:raylib"
 import math "core:math"
 
 TowerStats :: struct {
 	shape: Shape,
 	// Number of seconds between each attack
 	attack_cooldown: f32,
-	draw: proc(t: ^Tower, state: ^GameState),
 	cost: int,
 }
 
@@ -19,7 +17,6 @@ Tower :: struct {
 
 laserTowerStats := TowerStats {
 	shape = Rect{{48, 48}},
-	draw = drawTower,
 	attack_cooldown = 2,
 	cost = 5,
 }
@@ -35,14 +32,7 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 				dir := get_normalized_vector_facing_target(tower.pos, target.pos)
 				tower.rot = -math.atan(dir.y / dir.x)
 				bulletSpeed :: 1000
-				append(&state.projectiles, Entity{
-					pos = tower.pos + state.lookVec * 30,
-					velocity = dir * bulletSpeed,
-					shape = Circle {12},
-					col = .MID,
-					alive = true,
-				})
-				rl.PlaySound(laserSound)
+				spawn_bullet(state, tower.pos + state.lookVec * 30, dir * bulletSpeed)
 				tower.attack_timer = tower.stats.attack_cooldown
 			}
 		} else {
@@ -65,6 +55,3 @@ get_target :: proc(state: ^GameState) -> (target: ^Entity) {
 	return target
 }
 
-drawTower :: proc(tower: ^Tower, state: ^GameState) {
-	draw_entity(&tower.entity, state)
-}
