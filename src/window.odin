@@ -83,6 +83,7 @@ init :: proc() {
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
 	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
+	init_shader()
 }
 
 update :: proc() {
@@ -91,6 +92,7 @@ update :: proc() {
 
 	if rl.IsWindowResized() {
 		pan_to_new_window_size()
+		resize_shader()
 	}
 
 	// Pan with middle mouse button
@@ -112,12 +114,8 @@ update :: proc() {
 	state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 	state.scale_hint = camera.zoom
 
-	rl.BeginDrawing()
-	defer free_all(context.temp_allocator)
-	defer rl.EndDrawing()
-
-	//rl.ClearBackground({0,0,0,100})
-	rl.DrawRectangle(0,0, screenSize.x, screenSize.y, {0,0,0,50})
+	rl.BeginTextureMode(shader_target)
+	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, 50})
 	switch currentScreen {
 	case .Title:
 		draw_title_screen()
@@ -146,6 +144,13 @@ update :: proc() {
 		}
 
 	}
+	rl.EndTextureMode()
+
+	rl.BeginDrawing()
+	defer free_all(context.temp_allocator)
+	defer rl.EndDrawing()
+	draw_shader()
+	draw_shader_debug()
 }
 
 
@@ -169,5 +174,6 @@ should_run :: proc() -> bool {
 }
 
 shutdown :: proc() {
+	shutdown_shader()
 	rl.CloseWindow()
 }
