@@ -71,7 +71,7 @@ draw_title_screen :: proc() {
 }
 
 init :: proc() {
-	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
+	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT, .MSAA_4X_HINT})
 	//rl.SetTargetFPS(10)
 	rl.InitWindow(1280, 720, "Meteor Defense")
 	// Disable quiting with esc key.
@@ -83,13 +83,16 @@ init :: proc() {
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
 	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
+	init_shader()
 }
 
 update :: proc() {
 	delta := rl.GetFrameTime()
+	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
 
 	if rl.IsWindowResized() {
 		pan_to_new_window_size()
+		resize_shader()
 	}
 
 	// Pan with middle mouse button
@@ -111,11 +114,8 @@ update :: proc() {
 	state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 	state.scale_hint = camera.zoom
 
-	rl.BeginDrawing()
-	defer free_all(context.temp_allocator)
-	defer rl.EndDrawing()
-
-	rl.ClearBackground(rl.BLACK)
+	rl.BeginTextureMode(shader_target)
+	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, 50})
 	switch currentScreen {
 	case .Title:
 		draw_title_screen()
@@ -136,14 +136,21 @@ update :: proc() {
 		draw_game_screen(&state)
 		rl.EndMode2D()
 		if state.gameOver {
-			rl.DrawText("VICTORY", rl.GetScreenWidth() / 2 - 240, rl.GetScreenHeight() / 2 - 50, 64, rl.LIGHTGRAY)
+			rl.DrawText("VICTORY", screenSize.x / 2 - 240, screenSize.y / 2 - 50, 64, rl.LIGHTGRAY)
 		} else {
 			rl.DrawText(rl.TextFormat("Time left: %.0f seconds", state.timeRemaining), rl.GetScreenWidth() - 240, 10, 20, rl.WHITE)
-			rl.DrawText(rl.TextFormat("$%d", state.money), rl.GetScreenWidth() - 240, 40, 20, rl.WHITE)
-			rl.DrawText(rl.TextFormat("HP: %.0f", state.comet.hp), rl.GetScreenWidth() - 240, 70, 20, rl.WHITE)
+			rl.DrawText(rl.TextFormat("$%d", state.money), screenSize.x - 240, 40, 20, rl.WHITE)
+			rl.DrawText(rl.TextFormat("HP: %.0f", state.comet.hp), screenSize.x - 240, 70, 20, rl.WHITE)
 		}
 
 	}
+	rl.EndTextureMode()
+
+	rl.BeginDrawing()
+	defer free_all(context.temp_allocator)
+	defer rl.EndDrawing()
+	draw_shader()
+	draw_shader_debug()
 }
 
 
@@ -167,5 +174,6 @@ should_run :: proc() -> bool {
 }
 
 shutdown :: proc() {
+	shutdown_shader()
 	rl.CloseWindow()
 }
