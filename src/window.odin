@@ -115,7 +115,12 @@ update :: proc() {
 	state.scale_hint = camera.zoom
 
 	rl.BeginTextureMode(shader_target)
-	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, 50})
+
+	afterimage_amount :: 0.65
+	curr_fps := max(cast(f32)rl.GetFPS(), 1.0)
+	wipe_opacity := cast(u8) min(255.0 * (1.0 - afterimage_amount) * 100.0 / curr_fps, 255.0)
+
+	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, wipe_opacity})
 	switch currentScreen {
 	case .Title:
 		draw_title_screen()

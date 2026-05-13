@@ -16,7 +16,7 @@ shader_params := ShaderParams{
 	ca_strength    = 0.0012,
 	glow_radius    = 3.8,
 	glow_strength  = 0.4,
-	noise_strength = 0.65,
+	noise_strength = 0.35,
 }
 shader_debug_open: bool
 

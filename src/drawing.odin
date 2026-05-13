@@ -3,7 +3,7 @@ import rl "vendor:raylib"
 import "core:math"
 import "core:math/rand"
 
-line_thickness :: 3.0
+line_thickness :: 4.0
 line_resolution ::  12/*lines per 100 pixels*/ / 100.0
 
 shape_T :: enum {
