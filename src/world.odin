@@ -1,9 +1,9 @@
 // The 2D world, all the entities inside it, and how they interact with eachother.
 package game
 
-import rl "vendor:raylib"
 import "core:fmt"
 import "core:math"
+import rl "vendor:raylib"
 
 Vec2 :: [2]f32
 
@@ -11,16 +11,12 @@ laserSound: rl.Sound
 rockDestroyedSound: rl.Sound
 
 spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
-	spawn(&state.projectiles, pos, Entity{
-		velocity = velocity,
-		shape = Circle{12},
-		col = .MID,
-	})
+	spawn(&state.projectiles, pos, Entity{velocity = velocity, shape = Circle{12}, col = .MID})
 	rl.PlaySound(laserSound)
 }
 
 // I'm thinking particles can be handled later with an arena.
-game_loop :: proc(delta:f32) {
+game_loop :: proc(delta: f32) {
 	if rl.IsKeyPressed(.ONE) {
 		state.buildMode = !state.buildMode
 	}
@@ -42,10 +38,10 @@ game_loop :: proc(delta:f32) {
 	projectileCount := len(state.projectiles)
 
 	// TODO: Use quadtrees to make collision checks cheaper
-	for i in 0..<projectileCount {
+	for i in 0 ..< projectileCount {
 		projectile := &state.projectiles[i]
 		projectile.pos += projectile.velocity * delta
-		for j in 0..<meteorCount {
+		for j in 0 ..< meteorCount {
 			meteor := &state.meteors[j]
 			if check_collision(projectile^, meteor^) {
 				projectile.alive = false
@@ -81,7 +77,12 @@ handle_input :: proc() {
 	}
 }
 
-find_intersection_point_on_entity :: proc(startPos: Vec2, target: Entity) -> (collisionPoint: Vec2) {
+find_intersection_point_on_entity :: proc(
+	startPos: Vec2,
+	target: Entity,
+) -> (
+	collisionPoint: Vec2,
+) {
 	rayVec := target.pos - startPos
 	rayLength := math.sqrt(rayVec.x * rayVec.x + rayVec.y * rayVec.y)
 	rayNormal := rayVec / rayLength
@@ -101,13 +102,13 @@ draw_game_screen :: proc(state: ^GameState) {
 	draw_entity(&state.comet, state)
 	draw_entity(&state.player, state)
 
-	for i in 0..<len(state.meteors) {
+	for i in 0 ..< len(state.meteors) {
 		draw_entity(&state.meteors[i].entity, state)
 	}
-	for i in 0..<len(state.towers) {
+	for i in 0 ..< len(state.towers) {
 		draw_entity(&state.towers[i].entity, state)
 	}
-	for i in 0..<len(state.projectiles) {
+	for i in 0 ..< len(state.projectiles) {
 		draw_entity(&state.projectiles[i], state)
 	}
 
@@ -115,3 +116,4 @@ draw_game_screen :: proc(state: ^GameState) {
 		draw_build_mode(state)
 	}
 }
+

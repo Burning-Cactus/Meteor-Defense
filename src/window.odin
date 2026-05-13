@@ -1,12 +1,15 @@
 // Handles drawing itself. drawing the ui, and when and how to draw the other parts of the game
 package game
 
-import fmt "core:fmt"
-import rl "vendor:raylib"
 import "core:c"
+import fmt "core:fmt"
 import "core:math"
+import rl "vendor:raylib"
 
-Screen :: enum{Title, Game}
+Screen :: enum {
+	Title,
+	Game,
+}
 currentScreen := Screen.Game
 
 run := true
@@ -15,36 +18,26 @@ paused: bool
 camera: rl.Camera2D
 prev_window_size: Vec2
 
-GameState :: struct { //TODO: split some of this into new WorldState
-	player: Entity,
-	lookVec: Vec2,
-	meteors: [dynamic]Meteor,
-	towers: [dynamic]Tower,
-	projectiles: [dynamic]Entity,
-	comet: Entity,
-
-	gameTime: f64,
+GameState :: struct {
+	//TODO: split some of this into new WorldState
+	player:        Entity,
+	lookVec:       Vec2,
+	meteors:       [dynamic]Meteor,
+	towers:        [dynamic]Tower,
+	projectiles:   [dynamic]Entity,
+	comet:         Entity,
+	gameTime:      f64,
 	timeRemaining: f32,
-	gameOver: bool,
-	money: u32,
-
-	buildMode: bool,
-	cursor: Vec2,
-	scale_hint: f32,
+	gameOver:      bool,
+	money:         u32,
+	buildMode:     bool,
+	cursor:        Vec2,
+	scale_hint:    f32,
 }
 
 state: GameState = {
-	player = Entity{
-		label = "jelly",
-		pos = {200, -100},
-		shape = Rect{32},
-		alive = true,
-	},
-	comet = Entity{
-		label = "comet",
-		hp = 20.0,
-		shape = Circle{200},
-	},
+	player = Entity{label = "jelly", pos = {200, -100}, shape = Rect{32}, alive = true},
+	comet = Entity{label = "comet", hp = 20.0, shape = Circle{200}}, // TODO change back to circle
 	timeRemaining = 60,
 	money = 20,
 }
@@ -58,12 +51,24 @@ pan_to_new_window_size :: proc() {
 
 draw_title_screen :: proc() {
 	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
-	midPoint := cast(Vec2) screenSize / 2
-	rl.DrawRectangleV(midPoint - {300,100}, {600,200}, rl.GRAY)
+	midPoint := cast(Vec2)screenSize / 2
+	rl.DrawRectangleV(midPoint - {300, 100}, {600, 200}, rl.GRAY)
 
-	rl.GuiSetStyle(.LABEL, i32(rl.GuiControlProperty.TEXT_COLOR_NORMAL), i32(rl.ColorToInt(rl.WHITE)))
-	rl.GuiSetStyle(.BUTTON, i32(rl.GuiControlProperty.BASE_COLOR_NORMAL), i32(rl.ColorToInt({0x33, 0x88, 0xBB, 0xFF})))
-	rl.GuiSetStyle(.BUTTON, i32(rl.GuiControlProperty.TEXT_COLOR_NORMAL), i32(rl.ColorToInt(rl.WHITE)))
+	rl.GuiSetStyle(
+		.LABEL,
+		i32(rl.GuiControlProperty.TEXT_COLOR_NORMAL),
+		i32(rl.ColorToInt(rl.WHITE)),
+	)
+	rl.GuiSetStyle(
+		.BUTTON,
+		i32(rl.GuiControlProperty.BASE_COLOR_NORMAL),
+		i32(rl.ColorToInt({0x33, 0x88, 0xBB, 0xFF})),
+	)
+	rl.GuiSetStyle(
+		.BUTTON,
+		i32(rl.GuiControlProperty.TEXT_COLOR_NORMAL),
+		i32(rl.ColorToInt(rl.WHITE)),
+	)
 	rl.GuiLabel({midPoint.x - 280, midPoint.y - 90, 560, 20}, "Welcome to JellyJam!")
 	if rl.GuiButton({midPoint.x - 280, midPoint.y - 60, 560, 60}, "Start game") {
 		start_game()
@@ -124,7 +129,7 @@ update :: proc() {
 			paused = !paused
 			fmt.printf("paused")
 		}
-		if !paused && !state.gameOver{
+		if !paused && !state.gameOver {
 			game_loop(delta)
 			state.gameTime += f64(delta)
 			state.timeRemaining -= delta
@@ -138,9 +143,21 @@ update :: proc() {
 		if state.gameOver {
 			rl.DrawText("VICTORY", screenSize.x / 2 - 240, screenSize.y / 2 - 50, 64, rl.LIGHTGRAY)
 		} else {
-			rl.DrawText(rl.TextFormat("Time left: %.0f seconds", state.timeRemaining), rl.GetScreenWidth() - 240, 10, 20, rl.WHITE)
+			rl.DrawText(
+				rl.TextFormat("Time left: %.0f seconds", state.timeRemaining),
+				rl.GetScreenWidth() - 240,
+				10,
+				20,
+				rl.WHITE,
+			)
 			rl.DrawText(rl.TextFormat("$%d", state.money), screenSize.x - 240, 40, 20, rl.WHITE)
-			rl.DrawText(rl.TextFormat("HP: %.0f", state.comet.hp), screenSize.x - 240, 70, 20, rl.WHITE)
+			rl.DrawText(
+				rl.TextFormat("HP: %.0f", state.comet.hp),
+				screenSize.x - 240,
+				70,
+				20,
+				rl.WHITE,
+			)
 		}
 
 	}
@@ -177,3 +194,4 @@ shutdown :: proc() {
 	shutdown_shader()
 	rl.CloseWindow()
 }
+

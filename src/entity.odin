@@ -10,25 +10,25 @@ Circle :: struct {
 	radius: f32,
 }
 
-Shape :: union { Rect, Circle }
+Shape :: union {
+	Rect,
+	Circle,
+}
 
 Entity :: struct {
-	id: u64,
-	label : string,
-	pos: Vec2,
-	velocity: Vec2,
-	rot: f32,
+	id:        u64,
+	label:     string,
+	pos:       Vec2,
+	velocity:  Vec2,
+	rot:       f32,
 	rot_speed: f32,
-	shape: Shape,
-
-	hp: f32,
-	power: f32,
-	col: ThemeColor,
-
-	draw: proc(e: ^Entity, state: ^GameState),
-
-	alive: bool,
-	value: u32,
+	shape:     Shape,
+	hp:        f32,
+	power:     f32,
+	col:       ThemeColor,
+	draw:      proc(e: ^Entity, state: ^GameState),
+	alive:     bool,
+	value:     u32,
 	death_sfx: rl.Sound,
 }
 
@@ -60,9 +60,9 @@ entity_bounds :: proc(e: ^Entity) -> Vec2 {
 		return e.shape.(Rect).size
 	case Circle:
 		x := e.shape.(Circle).radius * 2.0
-		return {x,x}
+		return {x, x}
 	}
-	return {0,0}
+	return {0, 0}
 }
 
 entity_size :: proc(e: ^Entity) -> f32 {
@@ -78,21 +78,22 @@ entity_size :: proc(e: ^Entity) -> f32 {
 
 // --- Collision ---
 
-rl_rect ::proc(e:Entity, r:Rect) -> rl.Rectangle {
-		return rl.Rectangle{e.pos.x, e.pos.y, r.size.x, r.size.y}
+rl_rect :: proc(e: Entity, r: Rect) -> rl.Rectangle {
+	return rl.Rectangle{e.pos.x, e.pos.y, r.size.x, r.size.y}
 }
 
 
-check_collision_rect_other ::proc(a:rl.Rectangle, b:Entity) -> bool {
+check_collision_rect_other :: proc(a: rl.Rectangle, b: Entity) -> bool {
 	switch _ in b.shape {
 	case Rect:
 		return rl.CheckCollisionRecs(a, rl_rect(b, b.shape.(Rect)))
 	case Circle:
 		return rl.CheckCollisionCircleRec(b.pos, b.shape.(Circle).radius, a)
 	}
-	return false//TODO: warning?
+	return false //TODO: warning?
 }
-check_collision_circle_other ::proc(a:Circle, a_pos:Vec2, b:Entity) -> bool {
+// Deprecated
+check_collision_circle_other :: proc(a: Circle, a_pos: Vec2, b: Entity) -> bool {
 	switch _ in b.shape {
 	case Rect:
 		return rl.CheckCollisionCircleRec(a_pos, a.radius, rl_rect(b, b.shape.(Rect)))
@@ -102,15 +103,82 @@ check_collision_circle_other ::proc(a:Circle, a_pos:Vec2, b:Entity) -> bool {
 	return false
 }
 
+// Check collision between two convex polygons of any rotation.
+check_collision_sat :: proc(a: Entity, b: Entity) -> bool {
+	a_shape := a.shape.(Rect)
+	switch b_shape in b.shape {
+	case Rect:
+		// Convert rectangles to vertex format
+		vertices1 := rect_to_vertices(a_shape, a.pos, a.rot)
+		vertices2 := rect_to_vertices(b_shape, b.pos, b.rot)
+		axes1 := calculate_normals_of_edges(vertices1)
+		axes2 := calculate_normals_of_edges(vertices2)
+
+		for i in 0 ..< len(axes1) {
+			// Project the shape onto each and every axis.
+			min1, max1 := project_shape_onto_axis(vertices1, axes1[i])
+			min2, max2 := project_shape_onto_axis(vertices2, axes1[i])
+			if min1 > max2 || min2 > max1 {
+				return false
+			}
+		}
+		for i in 0 ..< len(axes2) {
+			min1, max1 := project_shape_onto_axis(vertices1, axes2[i])
+			min2, max2 := project_shape_onto_axis(vertices2, axes2[i])
+			if min1 > max2 || min2 > max1 {
+				return false
+			}
+		}
+	case Circle:
+		vertices1 := rect_to_vertices(a_shape, a.pos, a.rot)
+		{
+			closest_vertex := vertices1[0]
+			closest_dist := dist_squared(vertices1[0], b.pos)
+			for i in 1 ..< len(vertices1) {
+				d := dist_squared(vertices1[i], b.pos)
+				if d < closest_dist {
+					closest_vertex = vertices1[i]
+					closest_dist = d
+				}
+			}
+			closest_axis := normalize(closest_vertex - b.pos)
+			min1, max1 := project_shape_onto_axis(vertices1, closest_axis)
+			circle_projection := dot_product(b.pos, closest_axis)
+			min2 := circle_projection - b_shape.radius
+			max2 := circle_projection + b_shape.radius
+			if min1 > max2 || min2 > max1 {
+				return false
+			}
+		}
+
+		axes1 := calculate_normals_of_edges(vertices1)
+		for i in 0 ..< len(axes1) {
+			min1, max1 := project_shape_onto_axis(vertices1, axes1[i])
+			circle_projection := dot_product(b.pos, axes1[i])
+			min2 := circle_projection - b_shape.radius
+			max2 := circle_projection + b_shape.radius
+			if min1 > max2 || min2 > max1 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 check_collision :: proc(a: Entity, b: Entity) -> bool {
 	if a == b do return false // or perhaps true?
-	switch _ in a.shape {
+	switch a_shape in a.shape {
 	case Rect:
-		return check_collision_rect_other(rl_rect(a, a.shape.(Rect)), b)
+		return check_collision_sat(a, b)
 	case Circle:
-		return check_collision_circle_other(a.shape.(Circle), a.pos, b)
+		switch b_shape in b.shape {
+		case Rect:
+			return check_collision_sat(b, a)
+		case Circle:
+			return rl.CheckCollisionCircles(a.pos, a_shape.radius, b.pos, b_shape.radius)
+		}
 	}
-	return false  // One of the Entities has no shape?
+	return false // One of the Entities has no shape?
 }
 
 check_collision_any :: proc(a: Entity, list: [dynamic]$T) -> bool {
@@ -122,7 +190,7 @@ check_collision_any :: proc(a: Entity, list: [dynamic]$T) -> bool {
 
 // --- Drawing ---
 
-draw_enity_shape ::proc(s:Shape, pos:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) {
+draw_enity_shape :: proc(s: Shape, pos: Vec2, rot: f32, col: ThemeColor, scale_hint: f32) {
 	switch _ in s {
 	case Rect:
 		draw_rect(pos, s.(Rect).size, rot, col, scale_hint)
@@ -142,3 +210,4 @@ draw_entity :: proc(e: ^Entity, state: ^GameState) {
 		draw_enity_shape(e.shape, e.pos, e.rot, e.col, scale_hint)
 	}
 }
+
