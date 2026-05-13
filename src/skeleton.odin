@@ -103,6 +103,15 @@ bone_to_world :: proc(b: Bone, local: Vec2) -> Vec2 {
 	return b.root + along * local.y + perp * local.x
 }
 
+// Transform a world-space point to bone-local coordinates.
+world_to_bone :: proc(b: Bone, world: Vec2) -> Vec2 {
+	along := b.tip - b.root
+	perp  := Vec2{-along.y, along.x}
+	d     := world - b.root
+	len_sq := along.x*along.x + along.y*along.y
+	return {(d.x*perp.x + d.y*perp.y) / len_sq, (d.x*along.x + d.y*along.y) / len_sq}
+}
+
 // Draw shapes on a bone. Coordinates are bone-local.
 draw_on_bone :: proc(b: Bone, shapes: []Drawshape, col: ThemeColor, scale_hint: f32) {
 	for s in shapes {
@@ -114,19 +123,35 @@ draw_on_bone :: proc(b: Bone, shapes: []Drawshape, col: ThemeColor, scale_hint: 
 	}
 }
 
+flip_h :: proc(shapes: []Drawshape) -> []Drawshape {
+	for &s in shapes {
+		s.start.x *= -1
+		s.end.x *= -1
+	}
+	return shapes
+}
+
+flip_v :: proc(shapes: []Drawshape) -> []Drawshape {
+	for &s in shapes {
+		s.start.y = 1.0 - s.start.y
+		s.end.y = 1.0 - s.end.y
+	}
+	return shapes
+}
 // Draw shapes on two bones with the x-axis mirrored on the second.
 // Pass (right_bone, left_bone) and define shapes for the right side only.
 draw_bilateral :: proc(b_r, b_l: Bone, shapes: []Drawshape, col: ThemeColor, scale_hint: f32) {
 	draw_on_bone(b_r, shapes, col, scale_hint)
-	for s in shapes {
-		ws: Drawshape
-		ws.type  = s.type
-		ws.start = bone_to_world(b_l, Vec2{-s.start.x, s.start.y})
-		ws.end   = bone_to_world(b_l, Vec2{-s.end.x,   s.end.y})
-		draw_shape(ws, col, scale_hint)
-	}
+	draw_on_bone(b_l, flip_h(shapes), col, scale_hint)
 }
 
+open_polygon :: proc(pts: []Vec2, allocator := context.temp_allocator) -> []Drawshape {
+	shapes := make([]Drawshape, len(pts), allocator)
+	for i in 0..<len(pts)-1 {
+		shapes[i] = Drawshape{.LINE, pts[i], pts[(i + 1)]}
+	}
+	return shapes
+}
 // Convert vertex list to a closed polygon of LINE Drawshapes.
 // Uses temp allocator — safe to call every frame.
 closed_polygon :: proc(pts: []Vec2, allocator := context.temp_allocator) -> []Drawshape {
