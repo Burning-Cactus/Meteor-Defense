@@ -40,6 +40,7 @@ state: GameState = {
 		pos = {200, -100},
 		shape = Rect{32},
 		alive = true,
+		draw = draw_player,
 	},
 	comet = Entity{
 		label = "comet",
