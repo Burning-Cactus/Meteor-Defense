@@ -26,10 +26,10 @@ Entity :: struct {
 	col: ThemeColor,
 
 	draw: proc(e: ^Entity, state: ^GameState),
+	on_death: proc(e: ^Entity),
 
 	alive: bool,
 	value: u32,
-	death_sfx: rl.Sound,
 }
 
 // --- Utils ---
@@ -47,8 +47,9 @@ spawn :: proc(list: ^[dynamic]$T, pos: Vec2, entity: T) -> ^T {
 
 remove_dead :: proc(list: ^[dynamic]$T) {
 	for i := len(list) - 1; i >= 0; i -= 1 {
-		if !list[i].alive {
-			if list[i].death_sfx.frameCount != 0 do rl.PlaySound(list[i].death_sfx)
+		e := &list[i]
+		if !e.alive {
+			if e.on_death != nil do e.on_death(e)
 			unordered_remove(list, i)
 		}
 	}

@@ -2,6 +2,7 @@ package game
 
 import "core:math"
 import "core:math/rand"
+import rl "vendor:raylib"
 
 MeteorType :: enum {SHOOTING_STAR, METEOROID, ASTEROID}
 Meteor :: struct {
@@ -56,9 +57,8 @@ draw_meteor :: proc(m: ^Meteor, state: ^GameState) {
 	}
 }
 
-draw_large_meteor :: proc(e: ^Entity, state: ^GameState) {
-	scale_hint: f32 = 1.0
-	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
+meteor_on_death :: proc(m: ^Meteor) {
+	rl.PlaySound(rockDestroyedSound)
 }
 
 update_meteors :: proc(state: ^GameState, delta: f32) {
@@ -98,7 +98,7 @@ spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 	preset := meteor_presets[type]
 	spawn(&state.meteors, pos, Meteor{
 		col = .RED,
-		death_sfx = rockDestroyedSound,
+		on_death = meteor_on_death,
 		draw = draw_meteor,
 		shape = Circle{preset.size}, //TODO: support polygonal asteroids
 		hp = preset.health,
