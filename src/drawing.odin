@@ -91,11 +91,11 @@ random_convex_polygon :: proc(pos:Vec2, rot:f32, points:i32, width_approx:f32, h
 
 // --- Primative Shapes ---
 
-draw_dot :: proc(pos:Vec2, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
+draw_dot :: proc(pos:Vec2, scale_hint:f32, col:ThemeColor, brightness:f32 = 1.0) {
 	// drawing slightly oversized because it doesn't look right otherwise
 	rl.DrawCircleV(pos, line_thickness *0.8 / scale_hint, modulate(theme[col], brightness))
 }
-draw_line :: proc(start:Vec2, end:Vec2, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
+draw_line :: proc(start:Vec2, end:Vec2, scale_hint:f32, col:ThemeColor, brightness:f32 = 1.0) {
 	angle := vec_angle(end - start)
 	a1 := math.to_degrees(angle + math.PI)
 	a2 := math.to_degrees(angle - math.PI)
@@ -108,7 +108,7 @@ draw_line :: proc(start:Vec2, end:Vec2, col:ThemeColor, scale_hint:f32, brightne
 draw_circle :: proc(pos:Vec2, radius:f32, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
 	scaled_radius := radius * scale_hint
 	if scaled_radius < line_thickness * 1.2 {
-		draw_dot(pos, col, scale_hint)
+		draw_dot(pos, scale_hint, col, brightness)
 	} else {
 		draw_polygon(circle_polygon(pos, radius, segments(scaled_radius)), col, scale_hint, brightness)
 	}
