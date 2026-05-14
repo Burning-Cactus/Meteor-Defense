@@ -13,10 +13,10 @@ ShaderParams :: struct {
 shader_target: rl.RenderTexture2D
 shader:        rl.Shader
 shader_params := ShaderParams{
-	ca_strength    = 0.003,
-	glow_radius    = 2.0,
-	glow_strength  = 0.6,
-	noise_strength = 0.0,
+	ca_strength    = 0.0012,
+	glow_radius    = 3.8,
+	glow_strength  = 0.4,
+	noise_strength = 0.35,
 }
 shader_debug_open: bool
 
@@ -89,11 +89,11 @@ draw_shader_debug :: proc() {
 
 	rl.GuiSliderBar({x, y, sw, ROW}, "CA",         rl.TextFormat("%.4f", shader_params.ca_strength),    &shader_params.ca_strength,    0,   0.02)
 	y += ROW + PAD
-	rl.GuiSliderBar({x, y, sw, ROW}, "Glow R",     rl.TextFormat("%.1f",  shader_params.glow_radius),   &shader_params.glow_radius,    0.5, 8)
+	rl.GuiSliderBar({x, y, sw, ROW}, "Glow R",     rl.TextFormat("%.1f",  shader_params.glow_radius),   &shader_params.glow_radius,    0.0, 8)
 	y += ROW + PAD
 	rl.GuiSliderBar({x, y, sw, ROW}, "Glow",       rl.TextFormat("%.2f",  shader_params.glow_strength), &shader_params.glow_strength,  0,   2)
 	y += ROW + PAD
-	rl.GuiSliderBar({x, y, sw, ROW}, "Noise",      rl.TextFormat("%.3f",  shader_params.noise_strength),&shader_params.noise_strength, 0,   0.2)
+	rl.GuiSliderBar({x, y, sw, ROW}, "Noise",      rl.TextFormat("%.3f",  shader_params.noise_strength),&shader_params.noise_strength, 0,  1.0)
 }
 
 shutdown_shader :: proc() {

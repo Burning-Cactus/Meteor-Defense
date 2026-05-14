@@ -3,7 +3,7 @@ import "core:math"
 import "core:math/rand"
 import rl "vendor:raylib"
 
-line_thickness :: 3.0
+line_thickness :: 4.0
 line_resolution :: 12 /  /*lines per 100 pixels*/100.0
 
 shape_T :: enum {
@@ -28,15 +28,16 @@ ThemeColor :: enum {
 	DEBUG,
 }
 
+draw_opacity: u8 : 60
 theme := [ThemeColor]rl.Color {
-	.FILL    = rl.BLACK,
-	.MID     = rl.GRAY,
-	.PRIMARY = rl.WHITE,
-	.RED     = rl.MAROON,
-	.BLUE    = rl.BLUE,
-	.CYAN    = rl.SKYBLUE,
-	.YELLOW  = rl.YELLOW,
-	.DEBUG   = rl.MAGENTA,
+	.FILL    = {0, 0, 0, draw_opacity},
+	.MID     = {0xff, 0xff, 0xff, draw_opacity - 20},
+	.PRIMARY = {0xff, 0xff, 0xff, draw_opacity},
+	.RED     = {0xff, 0x1e, 0x46, draw_opacity},
+	.BLUE    = {0x23, 0x81, 0xdc, draw_opacity},
+	.CYAN    = {0x4d, 0xae, 0xce, draw_opacity},
+	.YELLOW  = {0xf2, 0xe7, 0x7a, draw_opacity},
+	.DEBUG   = {0xff, 0x00, 0xff, draw_opacity},
 }
 
 // --- Drawing Utilities ---

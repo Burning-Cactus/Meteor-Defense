@@ -38,7 +38,7 @@ void main() {
     col += glow * glow_strength;
 
     // Noise
-    col += hash(uv + fract(time)) * noise_strength;
+    col *= (1.0-noise_strength/1.0) + hash(uv + fract(time)) * noise_strength*2.0;
 
     gl_FragColor = vec4(col, 1.0);
 }
