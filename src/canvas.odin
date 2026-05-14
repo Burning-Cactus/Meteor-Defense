@@ -54,14 +54,13 @@ nearest_shape :: proc(shapes:[dynamic]Drawshape, point:Vec2, threshold:f32) -> (
 }
 
 highlighted_shape_idx := -1
-highlighted_handle: HandleMode
 drag_offset: Vec2
 
-handle_highlighted_shape :: proc(shapes:^[dynamic]Drawshape, idx:int) {
+handle_highlighted_shape :: proc(shapes:^[dynamic]Drawshape, idx:int, handle:HandleMode) {
 	shape := shapes^[idx]
 
 	if shape.type == .CIRCLE {
-		switch highlighted_handle {
+		switch handle {
 		case .START:
 			draw_dot(shape.start, .DEBUG, state.scale_hint * 0.3)
 		case .END:
@@ -71,7 +70,7 @@ handle_highlighted_shape :: proc(shapes:^[dynamic]Drawshape, idx:int) {
 			draw_dot(shape.end, .DEBUG, state.scale_hint * 0.3)
 		}
 	} else {
-		switch highlighted_handle {
+		switch handle {
 		case .START:
 			draw_dot(shape.start, .DEBUG, state.scale_hint * 0.3)
 		case .END:
@@ -91,35 +90,35 @@ shape_drag: Drag = {button = rl.MouseButton.RIGHT}
 draw_mode:  Drawshape_Type
 curr_shape: Drawshape
 drawshapes: [dynamic]Drawshape
+selected_shapes : [dynamic]int
+highlighted_handle: HandleMode
 
 canvas_loop :: proc(delta:f32) {
 	select_threshold := 20.0 / state.scale_hint
 
-	if drag_started(&shape_drag) && highlighted_shape_idx != -1 {
-		s := drawshapes[highlighted_shape_idx]
-		switch highlighted_handle {
-		case .START, .BOTH:
-			drag_offset = s.start - state.cursor
-		case .END:
-			drag_offset = s.end - state.cursor
+	if drag_started(&shape_drag) {
+		if len(selected_shapes) == 0 && highlighted_shape_idx != -1{
+			append(&selected_shapes, highlighted_shape_idx)
+		}
+		shape_drag.start = state.cursor
+		shape_drag.end = state.cursor
+	}
+
+	if shape_drag.active{
+		cursor_delta := state.cursor - shape_drag.end
+		shape_drag.end = state.cursor
+		for i in selected_shapes {
+			s := &drawshapes[i]
+			move_whole_shape := len(selected_shapes) > 1 || highlighted_handle == .BOTH
+
+			if move_whole_shape || highlighted_handle == .START do s.start += cursor_delta
+			if move_whole_shape || highlighted_handle == .END do s.end += cursor_delta
 		}
 	}
 
-	if shape_drag.active && highlighted_shape_idx != -1 {
-		s := &drawshapes[highlighted_shape_idx]
-		switch highlighted_handle {
-		case .START:
-			s.start = state.cursor + drag_offset
-		case .END:
-			s.end = state.cursor + drag_offset
-		case .BOTH:
-			new_start := state.cursor + drag_offset
-			s.end    += new_start - s.start
-			s.start   = new_start
-		}
+	if drag_ended(&shape_drag) {
+		clear(&selected_shapes)
 	}
-
-	drag_ended(&shape_drag)
 
 	if !shape_drag.active {
 		highlighted_shape_idx, highlighted_handle = nearest_shape(drawshapes, state.cursor, select_threshold)
@@ -128,7 +127,7 @@ canvas_loop :: proc(delta:f32) {
 	for shape in drawshapes {
 		draw_shape(shape, .PRIMARY, state.scale_hint)
 	}
-	if highlighted_shape_idx != -1 do handle_highlighted_shape(&drawshapes, highlighted_shape_idx)
+	if highlighted_shape_idx != -1 do handle_highlighted_shape(&drawshapes, highlighted_shape_idx, highlighted_handle)
 
 	if rl.IsKeyPressed(.ONE) do draw_mode = .DOT
 	if rl.IsKeyPressed(.TWO) do draw_mode = .LINE
