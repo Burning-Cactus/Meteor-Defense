@@ -53,9 +53,9 @@ nearest_shape :: proc(shapes:[dynamic]Drawshape, point:Vec2, threshold:f32) -> (
 	return
 }
 
+highlighted_shape_idx := -1
 highlighted_handle: HandleMode
-dragging_shape_idx := -1
-dragging_handle: HandleMode
+drag_offset: Vec2
 
 handle_highlighted_shape :: proc(shapes:^[dynamic]Drawshape, idx:int) {
 	shape := shapes^[idx]
@@ -93,35 +93,35 @@ curr_shape: Drawshape
 drawshapes: [dynamic]Drawshape
 
 canvas_loop :: proc(delta:f32) {
-	select_threshold := 6.0 / state.scale_hint
+	select_threshold := 20.0 / state.scale_hint
 
-	if drag_started(&shape_drag) && dragging_shape_idx == -1 {
-		dragging_shape_idx, dragging_handle = nearest_shape(drawshapes, state.cursor, select_threshold)
-	}
-
-	if shape_drag.active && dragging_shape_idx != -1 {
-		s := &drawshapes[dragging_shape_idx]
-		switch dragging_handle {
-		case .START:
-			s.start = state.cursor
+	if drag_started(&shape_drag) && highlighted_shape_idx != -1 {
+		s := drawshapes[highlighted_shape_idx]
+		switch highlighted_handle {
+		case .START, .BOTH:
+			drag_offset = s.start - state.cursor
 		case .END:
-			s.end = state.cursor
-		case .BOTH:
-			d := state.cursor - s.start
-			s.end  += d
-			s.start = state.cursor
+			drag_offset = s.end - state.cursor
 		}
 	}
 
-	if drag_ended(&shape_drag) {
-		dragging_shape_idx = -1
+	if shape_drag.active && highlighted_shape_idx != -1 {
+		s := &drawshapes[highlighted_shape_idx]
+		switch highlighted_handle {
+		case .START:
+			s.start = state.cursor + drag_offset
+		case .END:
+			s.end = state.cursor + drag_offset
+		case .BOTH:
+			new_start := state.cursor + drag_offset
+			s.end    += new_start - s.start
+			s.start   = new_start
+		}
 	}
 
-	highlighted_shape_idx := -1
-	if dragging_shape_idx != -1 {
-		highlighted_shape_idx = dragging_shape_idx
-		highlighted_handle    = dragging_handle
-	} else {
+	drag_ended(&shape_drag)
+
+	if !shape_drag.active {
 		highlighted_shape_idx, highlighted_handle = nearest_shape(drawshapes, state.cursor, select_threshold)
 	}
 
