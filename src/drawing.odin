@@ -20,10 +20,10 @@ DrawshapePro :: struct { //dumb naming scheme but raylib uses it so why not
 	brightness: f32,
 }
 DrawshapeGroup :: struct {
-	name : string,
-	contents: []Drawable,
+	name:     string,
+	contents: [dynamic]^Drawable,
 }
-Drawable :: union{ Drawshape, DrawshapePro, DrawshapeGroup }
+Drawable :: union{ Drawshape, DrawshapePro, ^DrawshapeGroup }
 
 
 ThemeColor :: enum {
@@ -160,13 +160,17 @@ transformed_drawable :: proc(d: Drawable, t: Transform2D, allocator := context.t
 		p := d.(DrawshapePro)
 		p.drawshape = transformed_drawshape(p.drawshape, t)
 		return p
-	case DrawshapeGroup:
-		g := d.(DrawshapeGroup)
-		contents := make([]Drawable, len(g.contents), allocator)
+	case ^DrawshapeGroup:
+		g := d.(^DrawshapeGroup)
+		contents := make([dynamic]^Drawable, len(g.contents), allocator)
 		for item, i in g.contents {
-			contents[i] = transformed_drawable(item, t, allocator)
+			ptr := new(Drawable, allocator)
+			ptr^ = transformed_drawable(item^, t, allocator)
+			contents[i] = ptr
 		}
-		return DrawshapeGroup{g.name, contents}
+		result := new(DrawshapeGroup, allocator)
+		result^ = {g.name, contents}
+		return result
 	}
 	return d
 }
@@ -254,7 +258,7 @@ draw_shape_pro :: proc(s: DrawshapePro, scale_hint:f32=1.0) {
 
 draw_shape_group :: proc(g: DrawshapeGroup, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness:f32 = 1.0) {
 	for item in g.contents {
-		draw_shape(item, scale_hint, col, brightness)
+		draw_shape(item^, scale_hint, col, brightness)
 	}
 }
 
@@ -264,8 +268,8 @@ draw_shape :: proc(s:Drawable, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY
 		draw_shape_base(s.(Drawshape), scale_hint, col, brightness)
 	case DrawshapePro:
 		draw_shape_pro(s.(DrawshapePro), scale_hint)
-	case DrawshapeGroup:
-		draw_shape_group(s.(DrawshapeGroup), scale_hint, col, brightness)
+	case ^DrawshapeGroup:
+		draw_shape_group(s.(^DrawshapeGroup)^, scale_hint, col, brightness)
 	}
 }
 

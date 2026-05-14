@@ -5,84 +5,151 @@ import rl "vendor:raylib"
 
 HandleMode :: enum {START, END, BOTH}
 
-shape_handle_sqrdist ::proc(s:Drawshape, point:Vec2, threshold:f32) -> (f32, HandleMode) {
+ShapeRef :: struct {
+	group: ^DrawshapeGroup,
+	idx:   int,
+}
+
+shape_handle_sqrdist :: proc(d: Drawable, point: Vec2, threshold: f32) -> (f32, HandleMode) {
 	thr_sqr := threshold * threshold
-	switch s.type {
-	case .DOT:
-		d := point - s.end
-		return d.x*d.x + d.y*d.y, .END
-	case .LINE:
-		start_dist, _ := shape_handle_sqrdist({.DOT, s.start, s.start}, point, threshold)
-		end_dist, _ := shape_handle_sqrdist({.DOT, s.end, s.end}, point, threshold)
-		if start_dist < thr_sqr || end_dist < thr_sqr {
-			if start_dist < end_dist do return start_dist, .START
-			return end_dist, .END
+	switch v in d {
+	case Drawshape:
+		switch v.type {
+		case .DOT:
+			return dist_squared(point, v.end), .END
+		case .LINE:
+			start_sqrdist := dist_squared(point, v.start)
+			end_sqrdist   := dist_squared(point, v.end)
+			if start_sqrdist < thr_sqr || end_sqrdist < thr_sqr {
+				if start_sqrdist < end_sqrdist do return start_sqrdist, .START
+				return end_sqrdist, .END
+			}
+			return dist_squared(point, closest_point_on_segment(point, v.start, v.end)), .BOTH
+		case .CIRCLE:
+			center_sqrdist    := dist_squared(point, v.start)
+			radius            := math.sqrt(dist_squared(v.start, v.end))
+			perimeter_sqrdist := sqr(math.sqrt(center_sqrdist) - radius)
+			if center_sqrdist < perimeter_sqrdist do return center_sqrdist, .BOTH
+			return perimeter_sqrdist, .END
 		}
-		ab := s.end - s.start
-		ap := point - s.start
-		denom := ab.x*ab.x + ab.y*ab.y
-		t := (ap.x*ab.x + ap.y*ab.y) / denom if denom != 0 else 0
-		closest := s.start + clamp(t, 0, 1) * ab
-		d := point - closest
-		return d.x*d.x + d.y*d.y, .BOTH
-	case .CIRCLE:
-		d := point - s.start
-		dist_to_center := math.sqrt(d.x*d.x + d.y*d.y)
-		r := s.end - s.start
-		radius := math.sqrt(r.x*r.x + r.y*r.y)
-		diff := dist_to_center - radius
-		center_sqrdist := dist_to_center * dist_to_center
-		perimeter_sqrdist := diff * diff
-		if center_sqrdist < perimeter_sqrdist do return center_sqrdist, .BOTH
-		return perimeter_sqrdist, .END
+	case DrawshapePro:
+		return shape_handle_sqrdist(v.drawshape, point, threshold)
+	case ^DrawshapeGroup:
+		best := thr_sqr + 1
+		best_handle := HandleMode.BOTH
+		for item in v.contents {
+			dist, h := shape_handle_sqrdist(item^, point, threshold)
+			if dist < best {
+				best = dist
+				best_handle = h
+			}
+		}
+		return best, best_handle
 	}
 	return 0, .START
 }
 
-nearest_shape :: proc(shapes:[dynamic]Drawshape, point:Vec2, threshold:f32) -> (idx:int, handle:HandleMode) {
-	idx = -1
-	best := threshold * threshold
-	for i in 0..<len(shapes) {
-		dist, h := shape_handle_sqrdist(shapes[i], point, threshold)
-		if dist < best {
-			best = dist
-			idx = i
-			handle = h
+nearest_shape_in_group :: proc(
+	group:     ^DrawshapeGroup,
+	point:     Vec2,
+	threshold: f32,
+	best:      ^f32,
+) -> (ref: ShapeRef, handle: HandleMode, found: bool) {
+	for i in 0..<len(group.contents) {
+		item := group.contents[i]
+		if g, ok := item^.(^DrawshapeGroup); ok {
+			sub_ref, sub_handle, sub_found := nearest_shape_in_group(g, point, threshold, best)
+			if sub_found {
+				ref    = sub_ref
+				handle = sub_handle
+				found  = true
+			}
+		} else {
+			dist, h := shape_handle_sqrdist(item^, point, threshold)
+			if dist < best^ {
+				best^  = dist
+				ref    = {group, i}
+				handle = h
+				found  = true
+			}
 		}
 	}
 	return
 }
 
-highlighted_shape_idx := -1
+nearest_shape :: proc(group: ^DrawshapeGroup, point: Vec2, threshold: f32) -> (ref: ShapeRef, handle: HandleMode, found: bool) {
+	best := threshold * threshold
+	return nearest_shape_in_group(group, point, threshold, &best)
+}
+
+highlighted_ref:    ShapeRef
+highlighted_found:  bool
+highlighted_handle: HandleMode
 drag_offset: Vec2
 
-handle_highlighted_shape :: proc(shapes:^[dynamic]Drawshape, idx:int, handle:HandleMode) {
-	shape := shapes^[idx]
+drawable_base_shape :: proc(d: Drawable) -> (s: Drawshape, ok: bool) {
+	switch v in d {
+	case Drawshape:       return v, true
+	case DrawshapePro:    return v.drawshape, true
+	case ^DrawshapeGroup: return {}, false
+	}
+	return {}, false
+}
 
+handle_highlighted_shape :: proc(ref: ShapeRef, handle: HandleMode) {
+	d := ref.group.contents[ref.idx]^
 	dot_scale := state.scale_hint * .5
-	if shape.type == .CIRCLE {
-		switch handle {
-		case .START:
-			draw_dot(shape.start, dot_scale, .DEBUG, 2.0)
-		case .END:
-			draw_shape(shape, state.scale_hint, .DEBUG, 5.0)
-		case .BOTH:
-			draw_dot(shape.start, dot_scale, .DEBUG, 2.0)
-			draw_dot(shape.end, dot_scale, .DEBUG, 2.0)
+
+	if base, ok := drawable_base_shape(d); ok {
+		if base.type == .CIRCLE {
+			switch handle {
+			case .START:
+				draw_dot(base.start, dot_scale, .DEBUG, 2.0)
+			case .END:
+				draw_shape(d, state.scale_hint, .DEBUG, 5.0)
+			case .BOTH:
+				draw_dot(base.start, dot_scale, .DEBUG, 2.0)
+				draw_dot(base.end,   dot_scale, .DEBUG, 2.0)
+			}
+		} else {
+			switch handle {
+			case .START:
+				draw_dot(base.start, dot_scale, .DEBUG, 2.0)
+			case .END:
+				draw_dot(base.end, dot_scale, .DEBUG, 2.0)
+			case .BOTH:
+				draw_shape(d, state.scale_hint, .DEBUG, 2.0)
+			}
 		}
 	} else {
-		switch handle {
-		case .START:
-			draw_dot(shape.start, dot_scale, .DEBUG, 2.0)
-		case .END:
-			draw_dot(shape.end, dot_scale, .DEBUG, 2.0)
-		case .BOTH:
-			draw_shape(shape, state.scale_hint, .DEBUG, 2.0)
-		}
+		draw_shape(d, state.scale_hint, .DEBUG, 2.0)
 	}
 
 	if rl.IsKeyPressed(.D) {
-		unordered_remove(shapes, idx)
+		free(ref.group.contents[ref.idx])
+		unordered_remove(&ref.group.contents, ref.idx)
+		clear(&selected_shapes)
+		highlighted_found = false
+	}
+}
+
+move_drawable :: proc(d: ^Drawable, delta: Vec2, move_whole: bool, handle: HandleMode) {
+	switch _ in d^ {
+	case Drawshape:
+		s := d^.(Drawshape)
+		if move_whole || handle == .START do s.start += delta
+		if move_whole || handle == .END   do s.end   += delta
+		d^ = s
+	case DrawshapePro:
+		p := d^.(DrawshapePro)
+		if move_whole || handle == .START do p.start += delta
+		if move_whole || handle == .END   do p.end   += delta
+		d^ = p
+	case ^DrawshapeGroup:
+		g := d^.(^DrawshapeGroup)
+		for item in g.contents {
+			move_drawable(item, delta, true, .BOTH)
+		}
 	}
 }
 
@@ -90,9 +157,8 @@ draw_drag:  Drag = {button = rl.MouseButton.LEFT}
 shape_drag: Drag = {button = rl.MouseButton.RIGHT}
 draw_mode:  Drawshape_Type
 curr_shape: Drawshape
-drawshapes: [dynamic]Drawshape
-selected_shapes : [dynamic]int
-highlighted_handle: HandleMode
+root:            DrawshapeGroup = {name = "root"}
+selected_shapes: [dynamic]ShapeRef
 
 dot_icon    := Drawshape{.DOT, {}, {}}
 line_icon   := Drawshape{.LINE, {-.4,-.4}, {.4,.4}}
@@ -104,26 +170,23 @@ canvas_tools := [3]UITool{
 	{title = "Circle", icon = circle_icon, use = proc() { draw_mode = .CIRCLE }},
 }
 
-canvas_loop :: proc(delta:f32) {
+canvas_loop :: proc(delta: f32) {
 	select_threshold := 20.0 / state.scale_hint
 
-	if drag_started(&shape_drag){
-		if len(selected_shapes) == 0 && highlighted_shape_idx != -1{
-			append(&selected_shapes, highlighted_shape_idx)
+	if drag_started(&shape_drag) {
+		if len(selected_shapes) == 0 && highlighted_found {
+			append(&selected_shapes, highlighted_ref)
 		}
 		shape_drag.start = state.cursor
-		shape_drag.end = state.cursor
+		shape_drag.end   = state.cursor
 	}
 
-	if shape_drag.active{
+	if shape_drag.active {
 		cursor_delta := state.cursor - shape_drag.end
 		shape_drag.end = state.cursor
-		for i in selected_shapes {
-			s := &drawshapes[i]
-			move_whole_shape := len(selected_shapes) > 1 || highlighted_handle == .BOTH
-
-			if move_whole_shape || highlighted_handle == .START do s.start += cursor_delta
-			if move_whole_shape || highlighted_handle == .END do s.end += cursor_delta
+		for ref in selected_shapes {
+			move_whole := len(selected_shapes) > 1 || highlighted_handle == .BOTH
+			move_drawable(ref.group.contents[ref.idx], cursor_delta, move_whole, highlighted_handle)
 		}
 	}
 
@@ -132,15 +195,13 @@ canvas_loop :: proc(delta:f32) {
 	}
 
 	if !shape_drag.active {
-		highlighted_shape_idx, highlighted_handle = nearest_shape(drawshapes, state.cursor, select_threshold)
+		highlighted_ref, highlighted_handle, highlighted_found = nearest_shape(&root, state.cursor, select_threshold)
 	}
 
-	for shape in drawshapes {
-		draw_shape(shape, state.scale_hint)
-	}
-	if highlighted_shape_idx != -1 do handle_highlighted_shape(&drawshapes, highlighted_shape_idx, highlighted_handle)
+	draw_shape_group(root, state.scale_hint)
+	if highlighted_found do handle_highlighted_shape(highlighted_ref, highlighted_handle)
 
-	if drag_started(&draw_drag)  && selected_tool.use != nil {
+	if drag_started(&draw_drag) && selected_tool.use != nil {
 		selected_tool.use()
 		draw_drag.start = state.cursor
 		curr_shape = {draw_mode, draw_drag.start, draw_drag.start}
@@ -150,6 +211,8 @@ canvas_loop :: proc(delta:f32) {
 		draw_shape(curr_shape, state.scale_hint)
 	}
 	if drag_ended(&draw_drag) {
-		append(&drawshapes, curr_shape)
+		ptr := new(Drawable)
+		ptr^ = curr_shape
+		append(&root.contents, ptr)
 	}
 }

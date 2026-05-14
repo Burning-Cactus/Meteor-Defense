@@ -41,3 +41,10 @@ angle_facing ::proc(from:Vec2, to:Vec2) -> f32 {
 unit_vector :: proc(angle: f32) -> Vec2 {
 	return Vec2{math.cos(angle), math.sin(angle)}
 }
+
+closest_point_on_segment :: proc(point, start, end: Vec2) -> Vec2 {
+	ab := end - start
+	denom := ab.x*ab.x + ab.y*ab.y
+	t := (ab.x*(point.x-start.x) + ab.y*(point.y-start.y)) / denom if denom != 0 else 0
+	return start + clamp(t, 0, 1) * ab
+}
