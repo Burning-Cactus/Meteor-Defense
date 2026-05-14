@@ -74,30 +74,35 @@ direction_offset :: proc(d: DrawDirection) -> Vec2 {
 	return table[d]
 }
 
+selected_tool:^UITool
 draw_tools :: proc(tools: []UITool, start: Vec2, icon_direction: DrawDirection, list_direction: DrawDirection) {
 	slot := tool_slot_size
 	step := direction_offset(list_direction) * slot
-	//icon_anchor := (direction_offset(icon_direction) + {1, 1}) * 0.5 * slot
-	rgb := theme[.PRIMARY]
-	col := rl.Color{rgb.r, rgb.g, rgb.b, 255}
+	offset := direction_offset(icon_direction) * tool_slot_size * -.5
 
-	for tool, i in tools {
-		slot_pos := start + step * f32(i)
+	for &tool, i in tools {
+		slot_corner := start + step * f32(i)
+		slot_centre := slot_corner + offset
 
-		rl.DrawRectangleLinesEx({slot_pos.x, slot_pos.y, slot, slot}, 2, col)
-		rl.DrawText(rl.TextFormat("%i", i32(i + 1)), i32(slot_pos.x + 2), i32(slot_pos.y + 2), 10, col)
+		selected := &tool == selected_tool
+
+		color:ThemeColor= .PRIMARY
+		brightness:f32  = 1.8 if selected else 0.4
+
+		rgb := theme[color]
+		col := rl.Color{rgb.r, rgb.g, rgb.b, 255}
+
+		draw_rect(slot_centre, {slot, slot}, 0, 1.0, color, brightness)
+
+		rl.DrawText(rl.TextFormat("%i", i32(i + 1)), i32(slot_corner.x + 2), i32(slot_corner.y + 2), 10, col)
 
 		if tool.icon != nil {
-			if ds, ok := tool.icon.(Drawshape); ok {
-				scaled := ds
-				scaled.start = slot_pos + ds.start * slot
-				scaled.end   = slot_pos + ds.end   * slot
-				draw_shape(scaled)
-			}
+			t := transform_trs(slot_centre, 0, {slot, slot})
+			draw_shape(transformed_drawable(tool.icon, t), 1.0, color, brightness)
 		}
 		if len(tool.title) > 0 {
 			title := strings.clone_to_cstring(tool.title, context.temp_allocator)
-			rl.DrawText(title, i32(slot_pos.x), i32(slot_pos.y + slot + 2), 8, col)
+			rl.DrawText(title, i32(slot_corner.x), i32(slot_corner.y + slot + 2), 8, col)
 		}
 	}
 }

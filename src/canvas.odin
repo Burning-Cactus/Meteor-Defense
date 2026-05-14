@@ -59,24 +59,25 @@ drag_offset: Vec2
 handle_highlighted_shape :: proc(shapes:^[dynamic]Drawshape, idx:int, handle:HandleMode) {
 	shape := shapes^[idx]
 
+	dot_scale := state.scale_hint * .5
 	if shape.type == .CIRCLE {
 		switch handle {
 		case .START:
-			draw_dot(shape.start, state.scale_hint, .DEBUG, 0.3)
+			draw_dot(shape.start, dot_scale, .DEBUG, 2.0)
 		case .END:
-			draw_shape(shape, state.scale_hint, .DEBUG)
+			draw_shape(shape, state.scale_hint, .DEBUG, 5.0)
 		case .BOTH:
-			draw_dot(shape.start, state.scale_hint, .DEBUG, 0.3)
-			draw_dot(shape.end, state.scale_hint, .DEBUG, 0.3)
+			draw_dot(shape.start, dot_scale, .DEBUG, 2.0)
+			draw_dot(shape.end, dot_scale, .DEBUG, 2.0)
 		}
 	} else {
 		switch handle {
 		case .START:
-			draw_dot(shape.start, state.scale_hint, .DEBUG, 0.3)
+			draw_dot(shape.start, dot_scale, .DEBUG, 2.0)
 		case .END:
-			draw_dot(shape.end, state.scale_hint, .DEBUG, 0.3)
+			draw_dot(shape.end, dot_scale, .DEBUG, 2.0)
 		case .BOTH:
-			draw_shape(shape, state.scale_hint, .DEBUG)
+			draw_shape(shape, state.scale_hint, .DEBUG, 2.0)
 		}
 	}
 
@@ -93,9 +94,9 @@ drawshapes: [dynamic]Drawshape
 selected_shapes : [dynamic]int
 highlighted_handle: HandleMode
 
-dot_icon    := Drawshape{.DOT, {}, {0,.5}}
-line_icon   := Drawshape{.LINE, {.1,.2}, {.9,.8}}
-circle_icon := Drawshape{.CIRCLE, {.5,.5}, {1,.5}}
+dot_icon    := Drawshape{.DOT, {}, {}}
+line_icon   := Drawshape{.LINE, {-.4,-.4}, {.4,.4}}
+circle_icon := Drawshape{.CIRCLE, {}, {.4,0}}
 
 canvas_tools := [3]UITool{
 	{title = "Dot",    icon = dot_icon,    use = proc() { draw_mode = .DOT }},
@@ -106,7 +107,7 @@ canvas_tools := [3]UITool{
 canvas_loop :: proc(delta:f32) {
 	select_threshold := 20.0 / state.scale_hint
 
-	if drag_started(&shape_drag) {
+	if drag_started(&shape_drag){
 		if len(selected_shapes) == 0 && highlighted_shape_idx != -1{
 			append(&selected_shapes, highlighted_shape_idx)
 		}
@@ -139,11 +140,8 @@ canvas_loop :: proc(delta:f32) {
 	}
 	if highlighted_shape_idx != -1 do handle_highlighted_shape(&drawshapes, highlighted_shape_idx, highlighted_handle)
 
-	if i := select_tool(canvas_tools[:]); i >= 0 && canvas_tools[i].use != nil {
-		canvas_tools[i].use()
-	}
-
-	if drag_started(&draw_drag) {
+	if drag_started(&draw_drag)  && selected_tool.use != nil {
+		selected_tool.use()
 		draw_drag.start = state.cursor
 		curr_shape = {draw_mode, draw_drag.start, draw_drag.start}
 	}

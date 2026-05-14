@@ -155,8 +155,11 @@ update :: proc() {
 		rl.BeginMode2D(camera)
 		canvas_loop(delta)
 		rl.EndMode2D()
-		draw_tools(canvas_tools[:], {10, 10}, .CENTER, .RIGHT)
 
+		if i:= select_tool(canvas_tools[:]); i>=0 {
+			selected_tool = &canvas_tools[i]
+		}
+		draw_tools(canvas_tools[:], {10, 10}, .TOP_LEFT, .RIGHT)
 	}
 	rl.EndTextureMode()
 	//rl.EndBlendMode()

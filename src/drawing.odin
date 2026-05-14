@@ -36,7 +36,7 @@ ThemeColor :: enum {
 	DEBUG,
 }
 
-draw_opacity :u8: 60
+draw_opacity :u8: 40
 theme := [ThemeColor][3]u8 {
 	.FILL =   	{0,    0,    0,  },
 	.PRIMARY =	{0xff, 0xff, 0xff},
@@ -51,7 +51,7 @@ theme := [ThemeColor][3]u8 {
 
 modulate :: proc(rgb: [3]u8, brightness:f32) -> rl.Color {
 	alpha := cast(u8) (cast(f32)draw_opacity * brightness)
-	return {rgb.r, rgb.g, rgb.g, alpha}
+	return {rgb.r, rgb.g, rgb.b, alpha}
 }
 segments :: proc(radius:f32) -> i32{
 	return  max(4, i32(math.ceil(math.TAU * math.sqrt(radius) * line_resolution)))
@@ -127,6 +127,49 @@ draw_circle :: proc(pos:Vec2, radius:f32, scale_hint:f32=1.0, col:ThemeColor=.PR
 	}
 }
 
+
+// --- Transforms ---
+
+Transform2D :: struct {
+	mat: matrix[2, 2]f32,
+	pos: Vec2,
+}
+
+transform_identity :: proc() -> Transform2D {
+	return {mat = matrix[2, 2]f32{1, 0, 0, 1}}
+}
+
+transform_trs :: proc(pos: Vec2, rot: f32, scale: Vec2) -> Transform2D {
+	m := get_rotation_matrix(rot)
+	return {mat = matrix[2, 2]f32{m[0,0]*scale.x, m[0,1]*scale.y, m[1,0]*scale.x, m[1,1]*scale.y}, pos = pos}
+}
+
+transform_point :: proc(t: Transform2D, p: Vec2) -> Vec2 {
+	return p * t.mat + t.pos
+}
+
+transformed_drawshape :: proc(s: Drawshape, t: Transform2D) -> Drawshape {
+	return {s.type, transform_point(t, s.start), transform_point(t, s.end)}
+}
+
+transformed_drawable :: proc(d: Drawable, t: Transform2D, allocator := context.temp_allocator) -> Drawable {
+	switch _ in d {
+	case Drawshape:
+		return transformed_drawshape(d.(Drawshape), t)
+	case DrawshapePro:
+		p := d.(DrawshapePro)
+		p.drawshape = transformed_drawshape(p.drawshape, t)
+		return p
+	case DrawshapeGroup:
+		g := d.(DrawshapeGroup)
+		contents := make([]Drawable, len(g.contents), allocator)
+		for item, i in g.contents {
+			contents[i] = transformed_drawable(item, t, allocator)
+		}
+		return DrawshapeGroup{g.name, contents}
+	}
+	return d
+}
 
 // --- Compound Shapes ---
 
@@ -209,20 +252,20 @@ draw_shape_pro :: proc(s: DrawshapePro, scale_hint:f32=1.0) {
 	draw_shape_base(s.drawshape, scale_hint, s.col, s.brightness)
 }
 
-draw_shape_group :: proc(g: DrawshapeGroup, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY) {
+draw_shape_group :: proc(g: DrawshapeGroup, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness:f32 = 1.0) {
 	for item in g.contents {
-		draw_shape(item, scale_hint, col)
+		draw_shape(item, scale_hint, col, brightness)
 	}
 }
 
-draw_shape :: proc(s:Drawable, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY) {
+draw_shape :: proc(s:Drawable, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness:f32=1.0) {
 	switch _ in s {
 	case Drawshape:
-		draw_shape_base(s.(Drawshape), scale_hint, col)
+		draw_shape_base(s.(Drawshape), scale_hint, col, brightness)
 	case DrawshapePro:
 		draw_shape_pro(s.(DrawshapePro), scale_hint)
 	case DrawshapeGroup:
-		draw_shape_group(s.(DrawshapeGroup), scale_hint, col)
+		draw_shape_group(s.(DrawshapeGroup), scale_hint, col, brightness)
 	}
 }
 
