@@ -82,28 +82,23 @@ rl_rect :: proc(e: Entity, r: Rect) -> rl.Rectangle {
 	return rl.Rectangle{e.pos.x, e.pos.y, r.size.x, r.size.y}
 }
 
-
-check_collision_rect_other :: proc(a: rl.Rectangle, b: Entity) -> bool {
-	switch _ in b.shape {
-	case Rect:
-		return rl.CheckCollisionRecs(a, rl_rect(b, b.shape.(Rect)))
-	case Circle:
-		return rl.CheckCollisionCircleRec(b.pos, b.shape.(Circle).radius, a)
+find_closest_vertex :: proc(pos: Vec2, vertices: []Vec2) -> Vec2 {
+	closest_vertex := vertices[0]
+	closest_dist := dist_squared(vertices[0], pos)
+	for i in 1 ..< len(vertices) {
+		d := dist_squared(vertices[i], pos)
+		if d < closest_dist {
+			closest_vertex = vertices[i]
+			closest_dist = d
+		}
 	}
-	return false //TODO: warning?
-}
-// Deprecated
-check_collision_circle_other :: proc(a: Circle, a_pos: Vec2, b: Entity) -> bool {
-	switch _ in b.shape {
-	case Rect:
-		return rl.CheckCollisionCircleRec(a_pos, a.radius, rl_rect(b, b.shape.(Rect)))
-	case Circle:
-		return rl.CheckCollisionCircles(a_pos, a.radius, b.pos, b.shape.(Circle).radius)
-	}
-	return false
+	return closest_vertex
 }
 
 // Check collision between two convex polygons of any rotation.
+// This is done by getting the axes perpendicular to every edge of each shape.
+// Then for each axis, project both shapes onto the axis as a 1D line segment and see if they overlap.
+// They must overlap on all axes to be colliding.
 check_collision_sat :: proc(a: Entity, b: Entity) -> bool {
 	a_shape := a.shape.(Rect)
 	switch b_shape in b.shape {
@@ -131,16 +126,9 @@ check_collision_sat :: proc(a: Entity, b: Entity) -> bool {
 		}
 	case Circle:
 		vertices1 := rect_to_vertices(a_shape, a.pos, a.rot)
+		// The comparison from the circle's side is just the axis connecting the center of the circle and the nearest vertex of the polygon.
 		{
-			closest_vertex := vertices1[0]
-			closest_dist := dist_squared(vertices1[0], b.pos)
-			for i in 1 ..< len(vertices1) {
-				d := dist_squared(vertices1[i], b.pos)
-				if d < closest_dist {
-					closest_vertex = vertices1[i]
-					closest_dist = d
-				}
-			}
+			closest_vertex := find_closest_vertex(b.pos, vertices1)
 			closest_axis := normalize(closest_vertex - b.pos)
 			min1, max1 := project_shape_onto_axis(vertices1, closest_axis)
 			circle_projection := dot_product(b.pos, closest_axis)

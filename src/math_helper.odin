@@ -81,6 +81,7 @@ rect_to_vertices :: proc(
 	return vertices
 }
 
+// Calculate and return an array of the normal vectors perpendicular to each edge formed by the vertices passed in.
 calculate_normals_of_edges :: proc(
 	vertices: []Vec2,
 	allocator := context.temp_allocator,
