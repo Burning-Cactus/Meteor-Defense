@@ -3,13 +3,14 @@ package game
 import "core:math"
 import "core:math/rand"
 
-VfxType :: enum { BANG, SPARK }
+VfxType :: enum { BANG, SPARK, DEBRIS }
 
 Vfx :: struct {
 	using entity: Entity,
 	type:     VfxType,
 	age:      f32,
 	lifetime: f32,
+	line:     [2]Vec2, // local-space endpoints, used by DEBRIS
 }
 
 update_vfx :: proc(state: ^GameState, delta: f32) {
@@ -18,6 +19,7 @@ update_vfx :: proc(state: ^GameState, delta: f32) {
 		if !v.alive do continue
 		v.age += delta
 		v.pos += v.velocity * delta
+		v.rot += v.rot_speed * delta
 		if v.age >= v.lifetime {
 			v.alive = false
 		}
@@ -36,6 +38,10 @@ draw_vfx :: proc(v: ^Vfx, state: ^GameState) {
 		trail_time: f32 = 0.1
 		trail_end := v.pos - v.velocity * trail_time
 		draw_line(trail_end, v.pos, v.col, scale_hint)
+	case .DEBRIS:
+		t   := v.age / v.lifetime
+		seg := rotate_polygon(v.line[:], v.rot, v.pos)
+		draw_line(seg[0], seg[1], v.col, scale_hint, 2.0 - t)
 	}
 }
 
@@ -70,5 +76,36 @@ spawn_sparks :: proc(state: ^GameState, pos: Vec2, count: int = 8, speed: f32 = 
 		spd   := speed * (0.4 + rand.float32() * 0.8)
 		lt    := lifetime * (0.6 + rand.float32() * 0.8)
 		spawn_spark(state, pos, angle, spd, lt)
+	}
+}
+
+// DEBRIS: a line segment with velocity and spin.
+spawn_debris :: proc(state: ^GameState, a: Vec2, b: Vec2, vel: Vec2, col: ThemeColor, lifetime: f32 = .4) {
+	mid  := (a + b) / 2
+	half := (b - a) / 2
+	spawn_vfx(state, mid, Vfx{
+		type      = .DEBRIS,
+		draw      = draw_vfx,
+		col       = col,
+		velocity  = vel,
+		rot_speed = (rand.float32() - 0.5) * 1.1,
+		lifetime  = lifetime + (lifetime * (rand.float32() - 0.5) * 0.8),
+		line      = {-half, half},
+	})
+}
+
+// EXPLODED: spawns one debris piece per polygon edge, each flying away from the polygon center.
+// Expects a world-space polygon (already rotated and translated).
+spawn_exploded :: proc(state: ^GameState, poly: Polygon, col: ThemeColor, initial_velocity:Vec2={}, impulse: f32 = 30.0) {
+	center: Vec2
+	for v in poly do center += v
+	center /= f32(len(poly))
+	n := len(poly)
+	for i in 0..<n {
+		a   := poly[i]
+		b   := poly[(i+1) % n]
+		mid := (a + b) / 2
+		vel := get_normalized_vector_facing_target(center, mid) * impulse * (0.7 + rand.float32() * 0.6) + initial_velocity
+		spawn_debris(state, a, b, vel, col)
 	}
 }

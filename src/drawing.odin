@@ -117,6 +117,15 @@ draw_circle :: proc(pos:Vec2, radius:f32, col:ThemeColor, scale_hint:f32, bright
 
 // --- Compound Shapes ---
 
+rotate_polygon :: proc(poly:Polygon, rot:f32, pos:Vec2 = 0, allocator := context.temp_allocator) -> Polygon {
+	rot_mat := get_rotation_matrix(rot)
+	result  := make(Polygon, len(poly), allocator)
+	for i in 0..<len(poly) {
+		result[i] = poly[i] * rot_mat + pos
+	}
+	return result
+}
+
 draw_polygon :: proc(poly:Polygon, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
 	n := i32(len(poly))
 	for i in 0..<n {
@@ -124,14 +133,8 @@ draw_polygon :: proc(poly:Polygon, col:ThemeColor, scale_hint:f32, brightness:f3
 	}
 }
 
-draw_polygon_transformed :: proc(poly:Polygon, pos:Vec2, rot:f32, col:ThemeColor, scale_hint:f32, scale:Vec2 = 1, brightness:f32 = 1.0) {
-	rot_mat := get_rotation_matrix(rot)
-	n := i32(len(poly))
-	for i in 0..<n {
-		a := poly[i] * scale * rot_mat + pos
-		b := poly[(i+1) % n] * scale * rot_mat + pos
-		draw_line(a, b, col, scale_hint, brightness)
-	}
+draw_polygon_transformed :: proc(poly:Polygon, pos:Vec2, rot:f32, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
+	draw_polygon(rotate_polygon(poly, rot, pos), col, scale_hint, brightness)
 }
 
 draw_rect :: proc(pos:Vec2, size:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) {
