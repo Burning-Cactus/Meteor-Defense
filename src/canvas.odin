@@ -33,72 +33,116 @@ shape_handle_sqrdist ::proc(s:Drawshape, point:Vec2, threshold:f32) -> (f32, Han
 		diff := dist_to_center - radius
 		center_sqrdist := dist_to_center * dist_to_center
 		perimeter_sqrdist := diff * diff
-		if center_sqrdist < perimeter_sqrdist do return center_sqrdist, .START
-		return perimeter_sqrdist, .BOTH
+		if center_sqrdist < perimeter_sqrdist do return center_sqrdist, .BOTH
+		return perimeter_sqrdist, .END
 	}
 	return 0, .START
 }
 
-highlighted_shape : ^Drawshape
+nearest_shape :: proc(shapes:[dynamic]Drawshape, point:Vec2, threshold:f32) -> (idx:int, handle:HandleMode) {
+	idx = -1
+	best := threshold * threshold
+	for i in 0..<len(shapes) {
+		dist, h := shape_handle_sqrdist(shapes[i], point, threshold)
+		if dist < best {
+			best = dist
+			idx = i
+			handle = h
+		}
+	}
+	return
+}
+
 highlighted_handle: HandleMode
+dragging_shape_idx := -1
+dragging_handle: HandleMode
+
 handle_highlighted_shape :: proc(shapes:^[dynamic]Drawshape, idx:int) {
 	shape := shapes^[idx]
 
-	switch highlighted_handle {
-	case .START:
-		draw_dot(shape.start, .DEBUG, state.scale_hint * 0.3)
-	case .END:
-		draw_dot(shape.end, .DEBUG, state.scale_hint * 0.3)
-	case .BOTH:
-		draw_shape(shape, .DEBUG, state.scale_hint)
+	if shape.type == .CIRCLE {
+		switch highlighted_handle {
+		case .START:
+			draw_dot(shape.start, .DEBUG, state.scale_hint * 0.3)
+		case .END:
+			draw_shape(shape, .DEBUG, state.scale_hint)
+		case .BOTH:
+			draw_dot(shape.start, .DEBUG, state.scale_hint * 0.3)
+			draw_dot(shape.end, .DEBUG, state.scale_hint * 0.3)
+		}
+	} else {
+		switch highlighted_handle {
+		case .START:
+			draw_dot(shape.start, .DEBUG, state.scale_hint * 0.3)
+		case .END:
+			draw_dot(shape.end, .DEBUG, state.scale_hint * 0.3)
+		case .BOTH:
+			draw_shape(shape, .DEBUG, state.scale_hint)
+		}
 	}
-
 
 	if rl.IsKeyPressed(.D) {
 		unordered_remove(shapes, idx)
 	}
 }
 
-drag_start:Vec2
-drawing:bool
-draw_mode : Drawshape_Type
-curr_shape : Drawshape
-drawshapes : [dynamic]Drawshape
+draw_drag:  Drag = {button = rl.MouseButton.LEFT}
+shape_drag: Drag = {button = rl.MouseButton.RIGHT}
+draw_mode:  Drawshape_Type
+curr_shape: Drawshape
+drawshapes: [dynamic]Drawshape
+
 canvas_loop :: proc(delta:f32) {
 	select_threshold := 6.0 / state.scale_hint
-	closest_distance_squared := select_threshold * select_threshold
-	highlighted_shape_idx := -1
-	for i in 0..<len(drawshapes) {
-		shape := drawshapes[i]
-		dist, handle := shape_handle_sqrdist(shape, state.cursor, select_threshold)
-		if dist < closest_distance_squared{
-			highlighted_shape_idx = i
-			highlighted_handle = handle
-		}
-		draw_shape(shape, .PRIMARY, state.scale_hint)
+
+	if drag_started(&shape_drag) && dragging_shape_idx == -1 {
+		dragging_shape_idx, dragging_handle = nearest_shape(drawshapes, state.cursor, select_threshold)
 	}
 
-	if highlighted_shape_idx != -1 do handle_highlighted_shape( &drawshapes, highlighted_shape_idx)
+	if shape_drag.active && dragging_shape_idx != -1 {
+		s := &drawshapes[dragging_shape_idx]
+		switch dragging_handle {
+		case .START:
+			s.start = state.cursor
+		case .END:
+			s.end = state.cursor
+		case .BOTH:
+			d := state.cursor - s.start
+			s.end  += d
+			s.start = state.cursor
+		}
+	}
 
+	if drag_ended(&shape_drag) {
+		dragging_shape_idx = -1
+	}
 
+	highlighted_shape_idx := -1
+	if dragging_shape_idx != -1 {
+		highlighted_shape_idx = dragging_shape_idx
+		highlighted_handle    = dragging_handle
+	} else {
+		highlighted_shape_idx, highlighted_handle = nearest_shape(drawshapes, state.cursor, select_threshold)
+	}
+
+	for shape in drawshapes {
+		draw_shape(shape, .PRIMARY, state.scale_hint)
+	}
+	if highlighted_shape_idx != -1 do handle_highlighted_shape(&drawshapes, highlighted_shape_idx)
 
 	if rl.IsKeyPressed(.ONE) do draw_mode = .DOT
 	if rl.IsKeyPressed(.TWO) do draw_mode = .LINE
 	if rl.IsKeyPressed(.THREE) do draw_mode = .CIRCLE
 
-
-	if rl.IsMouseButtonPressed(.LEFT) {
-		drag_start = state.cursor
-		curr_shape = {draw_mode, drag_start, drag_start}
-		drawing = true
+	if drag_started(&draw_drag) {
+		draw_drag.start = state.cursor
+		curr_shape = {draw_mode, draw_drag.start, draw_drag.start}
 	}
-	if drawing {
+	if draw_drag.active {
 		curr_shape.end = state.cursor
 		draw_shape(curr_shape, .PRIMARY, state.scale_hint)
 	}
-	if rl.IsMouseButtonReleased(.LEFT) {
-		append(&drawshapes, (curr_shape))
-		drawing = false
+	if drag_ended(&draw_drag) {
+		append(&drawshapes, curr_shape)
 	}
-
 }
