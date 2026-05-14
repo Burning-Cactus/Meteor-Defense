@@ -4,7 +4,7 @@ import "core:math"
 import "core:math/rand"
 
 line_thickness :: 4.0
-line_resolution ::  12/*lines per 100 pixels*/ / 100.0
+line_resolution ::  48/*lines per 100 pixels*/ / 100.0
 
 shape_T :: enum {
 	DOT, LINE, CIRCLE,
@@ -17,7 +17,6 @@ Drawshape :: struct {
 
 ThemeColor :: enum {
 	PRIMARY,
-	MID,
 	FILL,
 	RED,
 	BLUE,
@@ -27,40 +26,54 @@ ThemeColor :: enum {
 }
 
 draw_opacity :u8: 60
-theme := [ThemeColor]rl.Color {
-	.FILL =   	{0,    0,    0,    draw_opacity},
-	.MID =    	{0xff, 0xff, 0xff, draw_opacity-20},
-	.PRIMARY =	{0xff, 0xff, 0xff, draw_opacity},
-	.RED =    	{0xff, 0x1e, 0x46, draw_opacity},
-	.BLUE =   	{0x23, 0x81, 0xdc, draw_opacity},
-	.CYAN =   	{0x4d, 0xae, 0xce, draw_opacity},
-	.YELLOW = 	{0xf2, 0xe7, 0x7a, draw_opacity},
-	.DEBUG =  	{0xff, 0x00, 0xff, draw_opacity},
+theme := [ThemeColor][3]u8 {
+	.FILL =   	{0,    0,    0,  },
+	.PRIMARY =	{0xff, 0xff, 0xff},
+	.RED =    	{0xff, 0x1e, 0x46},
+	.BLUE =   	{0x23, 0x81, 0xdc},
+	.CYAN =   	{0x4d, 0xae, 0xce},
+	.YELLOW = 	{0xf2, 0xe7, 0x7a},
+	.DEBUG =  	{0xff, 0x00, 0xff},
 }
 
 // --- Drawing Utilities ---
-
+modulate :: proc(rgb: [3]u8, brightness:f32) -> rl.Color {
+	alpha := cast(u8) (cast(f32)draw_opacity * brightness)
+	return {rgb.r, rgb.g, rgb.g, alpha}
+}
 segments :: proc(radius:f32) -> i32{
-	return  max(4, i32(math.ceil(math.TAU * radius * line_resolution)))
+	return  max(4, i32(math.ceil(math.TAU * math.sqrt(radius) * line_resolution)))
 }
 
 // --- Primative Shapes ---
 
-draw_dot :: proc(pos:Vec2, col:ThemeColor, scale_hint:f32) {
-	rl.DrawCircleV(pos, line_thickness / scale_hint / 2.0, theme[col])
+draw_dot :: proc(pos:Vec2, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
+	rl.DrawCircleV(pos, line_thickness / scale_hint / 2.0, modulate(theme[col], brightness))
 }
-draw_line :: proc(start:Vec2, end:Vec2, col:ThemeColor, scale_hint:f32) {
-	draw_dot(start, col, scale_hint)
-	rl.DrawLineEx(start, end, line_thickness/scale_hint, theme[col])
-	draw_dot(end, col, scale_hint)
+draw_line :: proc(start:Vec2, end:Vec2, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
+	rl.DrawLineEx(start, end, line_thickness/scale_hint, modulate(theme[col], brightness))
 }
-draw_circle :: proc(pos:Vec2, radius:f32, col:ThemeColor, scale_hint:f32) {
-	t :f32 = line_thickness/2.0/scale_hint
+Polygon :: []Vec2
+
+circle_polygon :: proc(pos:Vec2, radius:f32, n:i32, allocator := context.temp_allocator) -> Polygon {
+	verts := make(Polygon, n, allocator)
+	for i in 0..<n {
+		angle := math.TAU * f32(i) / f32(n)
+		verts[i] = pos + {math.cos(angle), math.sin(angle)} * radius
+	}
+	return verts
+}
+
+draw_circle :: proc(pos:Vec2, radius:f32, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
 	scaled_radius := radius * scale_hint
 	if scaled_radius < line_thickness * 1.2 {
 		draw_dot(pos, col, scale_hint)
 	} else {
-		rl.DrawRing(pos, radius-t, radius+t, 0.0, 360.0, segments(radius * scale_hint), theme[col])
+		n := segments(scaled_radius)
+		poly := circle_polygon(pos, radius, n)
+		for i in 0..<n {
+			draw_line(poly[i], poly[(i+1) % n], col, scale_hint, brightness)
+		}
 	}
 }
 
@@ -114,14 +127,14 @@ draw_random_convex_polygon :: proc(pos:Vec2, rot:f32, points:i32, width_approx:f
 	}
 }
 
-draw_shape ::proc(s:Drawshape, col:ThemeColor, scale_hint:f32) {
+draw_shape ::proc(s:Drawshape, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
 	switch s.type {
 	case shape_T.DOT:
-		draw_dot(s.end, col, scale_hint)
+		draw_dot(s.end, col, scale_hint, brightness)
 	case shape_T.LINE:
-		draw_line(s.start, s.end, col, scale_hint)
+		draw_line(s.start, s.end, col, scale_hint, brightness)
 	case shape_T.CIRCLE:
-		draw_circle(s.start, rl.Vector2Distance(s.start, s.end), col, scale_hint)
+		draw_circle(s.start, rl.Vector2Distance(s.start, s.end), col, scale_hint, brightness)
 	}
 }
 

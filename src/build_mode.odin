@@ -28,7 +28,7 @@ draw_build_mode :: proc(state: ^GameState) {
 	draw_entity(&current_pending_tower.entity, state)
 	if rl.IsMouseButtonPressed(.LEFT) && can_build {
 		state.money -= current_pending_tower.stats.cost
-		current_pending_tower.col = .MID
+		current_pending_tower.col = .PRIMARY
 		spawn(&state.towers, current_pending_tower.pos, current_pending_tower)
 	}
 }

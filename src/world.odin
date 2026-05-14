@@ -14,7 +14,7 @@ spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
 	spawn(&state.projectiles, pos, Entity{
 		velocity = velocity,
 		shape = Circle{12},
-		col = .MID,
+		col = .PRIMARY,
 	})
 	rl.PlaySound(laserSound)
 }

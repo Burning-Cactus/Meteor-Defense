@@ -59,8 +59,8 @@ draw_meteor :: proc(m: ^Meteor, state: ^GameState) {
 
 meteor_on_death :: proc(m: ^Meteor, state: ^GameState) {
 	rl.PlaySound(rockDestroyedSound)
-	spawn_bang(state, m.pos, entity_size(m) * 1.5, 0.4, .RED)
-	spawn_sparks(state, m.pos, 10, 220, 0.7, .RED)
+	spawn_bang(state, m.pos, entity_size(m) * 1.0)
+	//spawn_sparks(state, m.pos, 10, 220, 0.7)
 	if m.type == .ASTEROID {
 		spawn_group(state, m.pos, .METEOROID)
 	}
