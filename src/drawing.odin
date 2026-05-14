@@ -99,10 +99,11 @@ draw_line :: proc(start:Vec2, end:Vec2, col:ThemeColor, scale_hint:f32, brightne
 	angle := vec_angle(end - start)
 	a1 := math.to_degrees(angle + math.PI)
 	a2 := math.to_degrees(angle - math.PI)
-	rl_col := modulate(theme[col], brightness)
-	rl.DrawCircleSector(start, line_thickness/2.0/scale_hint, a1, a2, 8, rl_col)
-	rl.DrawLineEx(start, end, line_thickness/scale_hint, rl_col)
-	rl.DrawCircleSector(end, line_thickness/2.0/scale_hint, a2, a1, 8, rl_col)
+	line_col := modulate(theme[col], brightness)
+	end_col := modulate(theme[col], brightness * 0.6)
+	rl.DrawLineEx(start, end, line_thickness/scale_hint, line_col)
+	rl.DrawCircleSector(start, line_thickness/2.0/scale_hint, a1, a2, 8, end_col)
+	rl.DrawCircleSector(end, line_thickness/2.0/scale_hint, a2, a1, 8, end_col)
 }
 draw_circle :: proc(pos:Vec2, radius:f32, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
 	scaled_radius := radius * scale_hint
@@ -120,6 +121,16 @@ draw_polygon :: proc(poly:Polygon, col:ThemeColor, scale_hint:f32, brightness:f3
 	n := i32(len(poly))
 	for i in 0..<n {
 		draw_line(poly[i], poly[(i+1) % n], col, scale_hint, brightness)
+	}
+}
+
+draw_polygon_transformed :: proc(poly:Polygon, pos:Vec2, rot:f32, col:ThemeColor, scale_hint:f32, scale:Vec2 = 1, brightness:f32 = 1.0) {
+	rot_mat := get_rotation_matrix(rot)
+	n := i32(len(poly))
+	for i in 0..<n {
+		a := poly[i] * scale * rot_mat + pos
+		b := poly[(i+1) % n] * scale * rot_mat + pos
+		draw_line(a, b, col, scale_hint, brightness)
 	}
 }
 

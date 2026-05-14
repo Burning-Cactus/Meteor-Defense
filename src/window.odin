@@ -84,6 +84,7 @@ init :: proc() {
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
 	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
+	init_meteor_polygons()
 	init_shader()
 }
 
