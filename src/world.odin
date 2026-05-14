@@ -59,10 +59,12 @@ game_loop :: proc(delta:f32) {
 	}
 	update_meteors(&state, delta)
 	update_towers(&state, delta)
+	update_vfx(&state, delta)
 
-	remove_dead(&state.meteors)
+	remove_dead(&state.meteors, &state)
 	// TODO: Define the boundaries of the map, and kill the bullets when they exit.
-	remove_dead(&state.projectiles)
+	remove_dead(&state.projectiles, &state)
+	remove_dead(&state.vfx, &state)
 
 }
 
@@ -109,6 +111,9 @@ draw_game_screen :: proc(state: ^GameState) {
 	}
 	for i in 0..<len(state.projectiles) {
 		draw_entity(&state.projectiles[i], state)
+	}
+	for i in 0..<len(state.vfx) {
+		draw_entity(&state.vfx[i].entity, state)
 	}
 
 	if state.buildMode {

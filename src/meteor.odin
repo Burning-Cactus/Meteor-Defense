@@ -57,8 +57,13 @@ draw_meteor :: proc(m: ^Meteor, state: ^GameState) {
 	}
 }
 
-meteor_on_death :: proc(m: ^Meteor) {
+meteor_on_death :: proc(m: ^Meteor, state: ^GameState) {
 	rl.PlaySound(rockDestroyedSound)
+	spawn_bang(state, m.pos, entity_size(m) * 1.5, 0.4, .RED)
+	spawn_sparks(state, m.pos, 10, 220, 0.7, .RED)
+	if m.type == .ASTEROID {
+		spawn_group(state, m.pos, .METEOROID)
+	}
 }
 
 update_meteors :: proc(state: ^GameState, delta: f32) {
@@ -89,7 +94,8 @@ handle_spawns :: proc(state: ^GameState, delta: f32) {
 		r := rand.float32() * 2 - 1
 		spawn_angle := r * math.PI + state.comet.rot
 		spawn_pos := Vec2{math.cos(spawn_angle), math.sin(spawn_angle)} * spawn_radius + state.comet.pos
-		spawn_group(state, spawn_pos)
+		type:=rand.choice_enum(MeteorType)
+		spawn_group(state, spawn_pos, type)
 		spawn_timer -= spawn_cooldown
 	}
 }
@@ -110,10 +116,9 @@ spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 	})
 }
 
-spawn_group :: proc(state: ^GameState, spawn_pos: Vec2) {
+spawn_group :: proc(state: ^GameState, spawn_pos: Vec2, type: MeteorType) {
 	spawn_count := rand.int31_max(5) + 1
 	for i in 0..<spawn_count {
-		type:=rand.choice_enum(MeteorType)
 		spawn_meteor(state, Vec2{spawn_pos.x + f32(i) * 50, spawn_pos.y}, type)
 	}
 }

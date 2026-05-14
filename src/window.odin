@@ -21,6 +21,7 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	meteors: [dynamic]Meteor,
 	towers: [dynamic]Tower,
 	projectiles: [dynamic]Entity,
+	vfx: [dynamic]Vfx,
 	comet: Entity,
 
 	gameTime: f64,
@@ -121,6 +122,7 @@ update :: proc() {
 	wipe_opacity := cast(u8) min(255.0 * (1.0 - afterimage_amount) * 100.0 / curr_fps, 255.0)
 
 	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, wipe_opacity})
+	//rl.BeginBlendMode(.ADDITIVE) TODO: this would take some work but look nicer
 	switch currentScreen {
 	case .Title:
 		draw_title_screen()
@@ -150,6 +152,7 @@ update :: proc() {
 
 	}
 	rl.EndTextureMode()
+	//rl.EndBlendMode()
 
 	rl.BeginDrawing()
 	defer free_all(context.temp_allocator)
