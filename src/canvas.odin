@@ -62,21 +62,21 @@ handle_highlighted_shape :: proc(shapes:^[dynamic]Drawshape, idx:int, handle:Han
 	if shape.type == .CIRCLE {
 		switch handle {
 		case .START:
-			draw_dot(shape.start, .DEBUG, state.scale_hint * 0.3)
+			draw_dot(shape.start, state.scale_hint, .DEBUG, 0.3)
 		case .END:
-			draw_shape(shape, .DEBUG, state.scale_hint)
+			draw_shape(shape, state.scale_hint, .DEBUG)
 		case .BOTH:
-			draw_dot(shape.start, .DEBUG, state.scale_hint * 0.3)
-			draw_dot(shape.end, .DEBUG, state.scale_hint * 0.3)
+			draw_dot(shape.start, state.scale_hint, .DEBUG, 0.3)
+			draw_dot(shape.end, state.scale_hint, .DEBUG, 0.3)
 		}
 	} else {
 		switch handle {
 		case .START:
-			draw_dot(shape.start, .DEBUG, state.scale_hint * 0.3)
+			draw_dot(shape.start, state.scale_hint, .DEBUG, 0.3)
 		case .END:
-			draw_dot(shape.end, .DEBUG, state.scale_hint * 0.3)
+			draw_dot(shape.end, state.scale_hint, .DEBUG, 0.3)
 		case .BOTH:
-			draw_shape(shape, .DEBUG, state.scale_hint)
+			draw_shape(shape, state.scale_hint, .DEBUG)
 		}
 	}
 
@@ -92,6 +92,16 @@ curr_shape: Drawshape
 drawshapes: [dynamic]Drawshape
 selected_shapes : [dynamic]int
 highlighted_handle: HandleMode
+
+dot_icon    := Drawshape{.DOT, {}, {0,.5}}
+line_icon   := Drawshape{.LINE, {.1,.2}, {.9,.8}}
+circle_icon := Drawshape{.CIRCLE, {.5,.5}, {1,.5}}
+
+canvas_tools := [3]UITool{
+	{title = "Dot",    icon = dot_icon,    use = proc() { draw_mode = .DOT }},
+	{title = "Line",   icon = line_icon,   use = proc() { draw_mode = .LINE }},
+	{title = "Circle", icon = circle_icon, use = proc() { draw_mode = .CIRCLE }},
+}
 
 canvas_loop :: proc(delta:f32) {
 	select_threshold := 20.0 / state.scale_hint
@@ -125,13 +135,13 @@ canvas_loop :: proc(delta:f32) {
 	}
 
 	for shape in drawshapes {
-		draw_shape(shape, .PRIMARY, state.scale_hint)
+		draw_shape(shape, state.scale_hint)
 	}
 	if highlighted_shape_idx != -1 do handle_highlighted_shape(&drawshapes, highlighted_shape_idx, highlighted_handle)
 
-	if rl.IsKeyPressed(.ONE) do draw_mode = .DOT
-	if rl.IsKeyPressed(.TWO) do draw_mode = .LINE
-	if rl.IsKeyPressed(.THREE) do draw_mode = .CIRCLE
+	if i := select_tool(canvas_tools[:]); i >= 0 && canvas_tools[i].use != nil {
+		canvas_tools[i].use()
+	}
 
 	if drag_started(&draw_drag) {
 		draw_drag.start = state.cursor
@@ -139,7 +149,7 @@ canvas_loop :: proc(delta:f32) {
 	}
 	if draw_drag.active {
 		curr_shape.end = state.cursor
-		draw_shape(curr_shape, .PRIMARY, state.scale_hint)
+		draw_shape(curr_shape, state.scale_hint)
 	}
 	if drag_ended(&draw_drag) {
 		append(&drawshapes, curr_shape)

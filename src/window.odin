@@ -155,6 +155,7 @@ update :: proc() {
 		rl.BeginMode2D(camera)
 		canvas_loop(delta)
 		rl.EndMode2D()
+		draw_tools(canvas_tools[:], {10, 10}, .CENTER, .RIGHT)
 
 	}
 	rl.EndTextureMode()

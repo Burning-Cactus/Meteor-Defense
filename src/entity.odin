@@ -123,12 +123,12 @@ check_collision_any :: proc(a: Entity, list: [dynamic]$T) -> bool {
 
 // --- Drawing ---
 
-draw_enity_shape ::proc(s:Shape, pos:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) {
+draw_enity_shape ::proc(s:Shape, pos:Vec2, rot:f32, scale_hint:f32, col:ThemeColor) {
 	switch _ in s {
 	case Rect:
-		draw_rect(pos, s.(Rect).size, rot, col, scale_hint)
+		draw_rect(pos, s.(Rect).size, rot, scale_hint, col)
 	case Circle:
-		draw_circle(pos, s.(Circle).radius, col, scale_hint)
+		draw_circle(pos, s.(Circle).radius, scale_hint, col)
 	}
 }
 
@@ -138,8 +138,8 @@ draw_entity :: proc(e: ^Entity, state: ^GameState) {
 	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
 	if e.draw != nil {
 		e.draw(e, state)
-		if draw_debug do draw_enity_shape(e.shape, e.pos, e.rot, .DEBUG, scale_hint)
+		if draw_debug do draw_enity_shape(e.shape, e.pos, e.rot, scale_hint, .DEBUG)
 	} else {
-		draw_enity_shape(e.shape, e.pos, e.rot, e.col, scale_hint)
+		draw_enity_shape(e.shape, e.pos, e.rot, scale_hint, e.col)
 	}
 }

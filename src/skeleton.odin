@@ -119,7 +119,7 @@ draw_on_bone :: proc(b: Bone, shapes: []Drawshape, col: ThemeColor, scale_hint: 
 		ws.type  = s.type
 		ws.start = bone_to_world(b, s.start)
 		ws.end   = bone_to_world(b, s.end)
-		draw_shape(ws, col, scale_hint)
+		draw_shape(ws, scale_hint, col)
 	}
 }
 
@@ -174,6 +174,6 @@ draw_skeleton_debug :: proc(sk: Skeleton, scale_hint: f32) {
 		sk.upper_leg_l, sk.lower_leg_l,
 	}
 	for b in bones {
-		draw_line(b.root, b.tip, .DEBUG, scale_hint)
+		draw_line(b.root, b.tip, scale_hint, .DEBUG)
 	}
 }
