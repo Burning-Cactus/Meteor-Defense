@@ -6,8 +6,8 @@ import rl "vendor:raylib"
 import "core:c"
 import "core:math"
 
-Screen :: enum{Title, Game}
-currentScreen := Screen.Game
+Screen :: enum{Title, Game, Draw}
+currentScreen := Screen.Draw
 
 run := true
 paused: bool
@@ -151,6 +151,10 @@ update :: proc() {
 			rl.DrawText(rl.TextFormat("$%d", state.money), screenSize.x - 240, 40, 20, rl.WHITE)
 			rl.DrawText(rl.TextFormat("HP: %.0f", state.comet.hp), screenSize.x - 240, 70, 20, rl.WHITE)
 		}
+	case .Draw:
+		rl.BeginMode2D(camera)
+		canvas_loop(delta)
+		rl.EndMode2D()
 
 	}
 	rl.EndTextureMode()

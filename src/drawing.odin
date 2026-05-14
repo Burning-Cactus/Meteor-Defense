@@ -6,11 +6,11 @@ import "core:math/rand"
 line_thickness :: 4.0
 line_resolution ::  48/*lines per 100 pixels*/ / 100.0
 
-shape_T :: enum {
+Drawshape_Type :: enum {
 	DOT, LINE, CIRCLE,
 }
 Drawshape :: struct {
-	type : shape_T,
+	type : Drawshape_Type,
 	start : Vec2,
 	end : Vec2,
 }
@@ -188,12 +188,21 @@ draw_random_convex_polygon :: proc(pos:Vec2, rot:f32, points:i32, width_approx:f
 
 draw_shape ::proc(s:Drawshape, col:ThemeColor, scale_hint:f32) {
 	switch s.type {
+<<<<<<< HEAD
 	case shape_T.DOT:
 		draw_dot(s.end, col, scale_hint, brightness)
 	case shape_T.LINE:
 		draw_line(s.start, s.end, col, scale_hint, brightness)
 	case shape_T.CIRCLE:
 		draw_circle(s.start, rl.Vector2Distance(s.start, s.end), col, scale_hint, brightness)
+=======
+	case Drawshape_Type.DOT:
+		draw_dot(s.end, col, scale_hint)
+	case Drawshape_Type.LINE:
+		draw_line(s.start, s.end, col, scale_hint)
+	case Drawshape_Type.CIRCLE:
+		draw_circle(s.start, rl.Vector2Distance(s.start, s.end), col, scale_hint)
+>>>>>>> d29fc6f (raydraw time)
 	}
 }
 
