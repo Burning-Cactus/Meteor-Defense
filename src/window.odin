@@ -34,6 +34,8 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	buildMode:     bool,
 	cursor:        Vec2,
 	scale_hint:    f32,
+
+	difficulty_scale: f32,
 }
 
 state: GameState = {
@@ -41,6 +43,7 @@ state: GameState = {
 	comet = Entity{label = "comet", hp = 20.0, shape = Polygon{pentagon}},
 	timeRemaining = 60,
 	money = 20,
+	difficulty_scale = 1
 }
 
 pan_to_new_window_size :: proc() {

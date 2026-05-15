@@ -67,6 +67,7 @@ game_loop :: proc(delta: f32) {
 	remove_dead(&state.projectiles, &state)
 	remove_dead(&state.vfx, &state)
 
+	state.difficulty_scale += 0.025 * delta
 }
 
 handle_input :: proc() {

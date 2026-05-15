@@ -96,22 +96,33 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 	}
 }
 
-spawn_cooldown: f32 = 1.5
+spawn_cooldown: f32 = 4.0
 spawn_timer: f32
 spawn_radius: f32 = 1000
 
 handle_spawns :: proc(state: ^GameState, delta: f32) {
-	spawn_timer += delta
+	spawn_timer += state.difficulty_scale * delta
 	if spawn_timer >= spawn_cooldown {
 		// We'll determine the spawn position in polar coordinates, then convert to cartesian.
 		// Range -1 to 1 => -pi to pi
 		r := rand.float32() * 2 - 1
 		spawn_angle := r * math.PI + state.comet.rot
 		spawn_pos := Vec2{math.cos(spawn_angle), math.sin(spawn_angle)} * spawn_radius + state.comet.pos
-		type:=rand.choice_enum(MeteorType)
+		type:=choose_meteor_type(state)
 		spawn_group(state, spawn_pos, type)
 		spawn_timer -= spawn_cooldown
 	}
+}
+
+choose_meteor_type :: proc(state: ^GameState) -> MeteorType {
+	star_weight: i32 = 6
+	meteor_weight := i32(1.5 * state.difficulty_scale + 1)
+	asteroid_weight := i32(1.1 * (state.difficulty_scale - 1.05))
+	if asteroid_weight < 0 do asteroid_weight = 0
+	r := rand.int31_max(star_weight + meteor_weight + asteroid_weight)
+	if r < asteroid_weight do return MeteorType.ASTEROID
+	if r < asteroid_weight + meteor_weight do return MeteorType.METEOROID
+	return MeteorType.SHOOTING_STAR
 }
 
 spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
