@@ -50,11 +50,7 @@ game_loop :: proc(delta: f32) {
 			meteor := &state.meteors[j]
 			if check_collision(projectile^, meteor^) {
 				projectile.alive = false
-				meteor.hp -= 1.0
-				if meteor.hp <= 0 {
-					meteor.alive = false
-					state.money += meteor.value
-				}
+				hurt_meteor(projectile^, meteor)
 			}
 		}
 	}

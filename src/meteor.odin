@@ -96,6 +96,28 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 	}
 }
 
+
+hurt_meteor :: proc(attacker: Entity, target: ^Meteor) {
+	target.hp -= 1.0
+	mass: f32
+	switch target.type {
+	case .ASTEROID:
+		mass = 160
+	case .METEOROID:
+		mass = 40
+	case .SHOOTING_STAR:
+		mass = 30
+	}
+	punch := attacker.velocity / mass
+	target.velocity += punch
+	rot_change := rand.float32() * 18 - 9
+	target.rot_speed += rot_change / mass
+	if target.hp <= 0 {
+		target.alive = false
+		state.money += target.value
+	}
+}
+
 spawn_cooldown: f32 = 4.0
 spawn_timer: f32
 spawn_radius: f32 = 1000
