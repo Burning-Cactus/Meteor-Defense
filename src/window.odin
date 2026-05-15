@@ -43,7 +43,7 @@ state: GameState = {
 	comet = Entity{label = "comet", hp = 20.0, shape = Polygon{pentagon}},
 	timeRemaining = 60,
 	money = 20,
-	difficulty_scale = 1
+	difficulty_scale = 1,
 }
 
 pan_to_new_window_size :: proc() {

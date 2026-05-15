@@ -3,6 +3,8 @@
 package game
 import rl "vendor:raylib"
 import "core:math"
+import "core:math/linalg"
+import "core:fmt"
 
 Rect :: struct {
 	size: Vec2,
@@ -102,7 +104,7 @@ entity_size :: proc(e: ^Entity) -> f32 {
 // --- Collision ---
 
 rl_rect :: proc(e: Entity, r: Rect) -> rl.Rectangle {
-	return rl.Rectangle{e.pos.x, e.pos.y, r.size.x, r.size.y}
+	return rl.Rectangle{e.pos.x, e.pos.y, r.size.x, r.size.y} // This is still broken right?
 }
 
 find_closest_vertex :: proc(pos: Vec2, vertices: []Vec2) -> Vec2 {
@@ -212,6 +214,49 @@ check_collision_any :: proc(a: Entity, list: [dynamic]$T) -> bool {
 		if check_collision(a, b) do return true
 	}
 	return false //TODO maybe more useful if it returned b
+}
+
+// --- Intersection ---
+
+find_intersection_point_on_entity :: proc( startPos: Vec2, target: Entity) -> Vec2 {
+	rayVec := target.pos - startPos
+	rayLength := math.sqrt(rayVec.x * rayVec.x + rayVec.y * rayVec.y)
+	rayNormal := rayVec / rayLength
+	result: Vec2
+	switch shape in target.shape {
+	case Rect:
+		fmt.printf("Not implemented!\n")
+	case Polygon:
+		vertices := copy_and_rotate_vertices(shape.vertices, target.pos, target.rot)
+		// Solve for scalars t and u
+		last_idx := len(shape.vertices) - 1
+		for i in 0..<last_idx {
+			p := vertices[i]
+			r := vertices[i+1]-p
+			s := rayVec
+			if linalg.cross(r, s) == 0 do continue
+			t := linalg.cross(startPos - p, s / linalg.cross(r, s))
+			if t < 0 || t > 1 do continue
+			u := linalg.cross(p - startPos, r / linalg.cross(s, r))
+			if u < 0 || u > 1 do continue
+			return p + t * r
+		}
+		p := vertices[last_idx]
+		r := vertices[0]-p
+		s := rayVec
+		if linalg.cross(r, s) == 0 {
+			return result
+		}
+		t := linalg.cross(startPos - p, s / linalg.cross(r, s))
+		if t < 0 || t > 1 do return result
+		u := linalg.cross(p - startPos, r / linalg.cross(s, r))
+		if u < 0 || u > 1 do return result
+		return p + t * r
+	case Circle:
+		dist := rayLength - shape.radius
+		result = startPos + rayNormal * dist
+	}
+	return result
 }
 
 // --- Drawing ---

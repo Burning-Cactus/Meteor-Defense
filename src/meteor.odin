@@ -14,7 +14,7 @@ init_meteor_polygons :: proc() {
 	for i in 0..<POLYGON_CACHE_SIZE {
 		ms := meteor_presets[.METEOROID]
 		as := meteor_presets[.ASTEROID]
-		meteoroid_polygon_cache[i] = random_convex_polygon({0,0}, 0, 7,  ms.size*2, ms.size*2, u64(i),                       context.allocator)
+		meteoroid_polygon_cache[i] = random_convex_polygon({0,0}, 0, 7,  ms.size*2, ms.size*2, u64(i), context.allocator)
 		asteroid_polygon_cache[i]  = random_convex_polygon({0,0}, 0, 17, as.size*2, as.size*2, u64(i + POLYGON_CACHE_SIZE), context.allocator)
 	}
 }

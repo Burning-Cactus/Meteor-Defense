@@ -1,8 +1,6 @@
 // The 2D world, all the entities inside it, and how they interact with eachother.
 package game
 
-import "core:math/linalg"
-import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
@@ -63,7 +61,7 @@ game_loop :: proc(delta: f32) {
 	remove_dead(&state.projectiles, &state)
 	remove_dead(&state.vfx, &state)
 
-	state.difficulty_scale += 0.025 * delta
+	state.difficulty_scale += 0.1 * delta
 }
 
 handle_input :: proc() {
@@ -79,52 +77,6 @@ handle_input :: proc() {
 		bulletSpeed :: 500
 		spawn_bullet(&state, player.pos + state.lookVec * 30, state.lookVec * bulletSpeed)
 	}
-}
-
-find_intersection_point_on_entity :: proc(
-	startPos: Vec2,
-	target: Entity,
-) -> (
-	collisionPoint: Vec2,
-) {
-	rayVec := target.pos - startPos
-	rayLength := math.sqrt(rayVec.x * rayVec.x + rayVec.y * rayVec.y)
-	rayNormal := rayVec / rayLength
-	result: Vec2
-	switch shape in target.shape {
-	case Rect:
-		fmt.printf("Not implemented!\n")
-	case Polygon:
-		vertices := copy_and_rotate_vertices(shape.vertices, target.pos, target.rot)
-		// Solve for scalars t and u
-		last_idx := len(shape.vertices) - 1
-		for i in 0..<last_idx {
-			p := vertices[i]
-			r := vertices[i+1]-p
-			s := rayVec
-			if linalg.cross(r, s) == 0 do continue
-			t := linalg.cross(startPos - p, s / linalg.cross(r, s))
-			if t < 0 || t > 1 do continue
-			u := linalg.cross(p - startPos, r / linalg.cross(s, r))
-			if u < 0 || u > 1 do continue
-			return p + t * r
-		}
-		p := vertices[last_idx]
-		r := vertices[0]-p
-		s := rayVec
-		if linalg.cross(r, s) == 0 {
-			return result
-		}
-		t := linalg.cross(startPos - p, s / linalg.cross(r, s))
-		if t < 0 || t > 1 do return result
-		u := linalg.cross(p - startPos, r / linalg.cross(s, r))
-		if u < 0 || u > 1 do return result
-		return p + t * r
-	case Circle:
-		dist := rayLength - shape.radius
-		result = startPos + rayNormal * dist
-	}
-	return result
 }
 
 draw_game_screen :: proc(state: ^GameState) {
