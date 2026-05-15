@@ -68,13 +68,13 @@ draw_tower ::proc(t: ^Tower, state: ^GameState) {
 	global_pos := local_to_world(t, {})
 	rot := entity_world_rot(t)
 	base := Bone{ global_pos, global_pos + unit_vector(rot) * tower_presets[t.type].height }
+	barrel := Bone{ base.tip, base.tip + normalize(t.target - base.tip) * 30}
 
 	draw_on_bone(base, open_polygon({
 		{-.2, 0},{0,.7},{.2,0},
 	}), t.col, state.scale_hint)
 	draw_on_bone(base, {{.DOT, {}, {0,1} }}, t.col, state.scale_hint)
 
-	barrel := Bone{ base.tip, base.tip + normalize(t.target - base.tip) * 30}
 	draw_on_bone(barrel, {
 		{.LINE, {-.1,.1},{.1,.1}},
 		{.LINE, {-.3,.2},{.3,.2}},

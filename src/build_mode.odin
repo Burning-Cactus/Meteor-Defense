@@ -5,6 +5,16 @@ import rl "vendor:raylib"
 current_tower_type:TowerType = .CANON_TOWER
 current_pending_tower:Tower
 
+build_mode_tools := []UITool{
+	{ title = "Laser", use = proc() { activate_build_mode(.CANON_TOWER)}},
+	{title = "Cannon", use = proc() { activate_build_mode(.LASER_TOWER) }},
+}
+
+activate_build_mode :: proc(build_tower: TowerType) {
+	current_tower_type = build_tower
+	state.buildMode = true
+}
+
 update_build_mode :: proc(state: ^GameState) {
 	//NOTE: input processing should only be done in frame loop
 	point, normal := find_intersection_point_on_entity(state.cursor, state.comet)
@@ -33,5 +43,6 @@ draw_build_mode :: proc(state: ^GameState) {
 		attach_to_parent(&current_pending_tower, &state.comet)
 		spawn(&state.towers, current_pending_tower.pos, current_pending_tower)
 		current_pending_tower = {}
+		state.buildMode = false
 	}
 }

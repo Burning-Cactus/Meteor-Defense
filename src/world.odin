@@ -17,10 +17,6 @@ spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
 
 // I'm thinking particles can be handled later with an arena.
 game_loop :: proc(delta: f32) {
-	if rl.IsKeyPressed(.ONE) {
-		state.buildMode = !state.buildMode
-	}
-
 	if state.buildMode {
 		update_build_mode(&state)
 	}

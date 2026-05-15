@@ -1,6 +1,7 @@
 // Handles drawing itself. drawing the ui, and when and how to draw the other parts of the game
 package game
 
+import "base:builtin"
 import "core:c"
 import fmt "core:fmt"
 import "core:math"
@@ -142,6 +143,20 @@ update :: proc() {
 	case .Title:
 		draw_title_screen()
 	case .Game:
+		// build mode
+		if i:= select_tool(build_mode_tools); i>=0 {
+			// why did I make this so confusing?
+			if &build_mode_tools[i] == selected_tool{
+				selected_tool = nil
+				state.buildMode = false
+			} else {
+				selected_tool = &build_mode_tools[i]
+				if selected_tool.use != nil do selected_tool.use()
+			}
+		}
+		draw_tools(build_mode_tools, {10, 50}, .TOP_LEFT, .BOTTOM)
+
+		// pause
 		if rl.IsKeyPressed(.ESCAPE) {
 			paused = !paused
 			fmt.printf("paused")
@@ -154,6 +169,7 @@ update :: proc() {
 				state.gameOver = true
 			}
 		}
+
 		rl.BeginMode2D(camera)
 		draw_game_screen(&state)
 		rl.EndMode2D()

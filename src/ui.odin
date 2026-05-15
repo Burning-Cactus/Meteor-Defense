@@ -77,7 +77,7 @@ direction_offset :: proc(d: DrawDirection) -> Vec2 {
 selected_tool:^UITool
 draw_tools :: proc(tools: []UITool, start: Vec2, icon_direction: DrawDirection, list_direction: DrawDirection) {
 	slot := tool_slot_size
-	step := direction_offset(list_direction) * slot
+	step := direction_offset(list_direction) * (slot + 18.0)
 	offset := direction_offset(icon_direction) * tool_slot_size * -.5
 
 	for &tool, i in tools {
