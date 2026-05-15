@@ -4,7 +4,8 @@ package game
 import rl "vendor:raylib"
 
 laserSound: rl.Sound
-rockDestroyedSound: rl.Sound
+hitSound: rl.Sound
+asteroidHitSound: rl.Sound
 
 spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
 	spawn(&state.projectiles, pos, Entity{

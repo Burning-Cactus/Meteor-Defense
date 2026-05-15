@@ -28,6 +28,7 @@ Meteor :: struct {
 MeteorPreset :: struct {
 	speed, spin, size, health, power:f32,
 	reward:u32,
+	death_sfx: ^rl.Sound,
 }
 meteor_presets := [MeteorType]MeteorPreset{
 	.SHOOTING_STAR = {
@@ -53,6 +54,7 @@ meteor_presets := [MeteorType]MeteorPreset{
 		health = 12.0,
 		power = 5.0,
 		reward = 10,
+		death_sfx = &asteroidHitSound,
 	},
 }
 
@@ -67,7 +69,10 @@ draw_meteor :: proc(m: ^Meteor, state: ^GameState) {
 }
 
 meteor_on_death :: proc(m: ^Meteor, state: ^GameState) {
-	rl.PlaySound(rockDestroyedSound)
+	if sfx:=meteor_presets[m.type].death_sfx; sfx != nil {
+		rl.PlaySound(sfx^)
+	}
+	rl.PlaySound(hitSound)
 	//spawn_sparks(state, m.pos, 10, 220, 0.7)
 	if m.type > .SHOOTING_STAR {
 		spawn_exploded(state, copy_and_rotate_vertices(m.polygon, m.pos, m.rot), m.col, m.velocity/2.0)
