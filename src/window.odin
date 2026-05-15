@@ -18,15 +18,16 @@ paused: bool
 camera: rl.Camera2D
 prev_window_size: Vec2
 
-GameState :: struct {
-	//TODO: split some of this into new WorldState
-	player:        Entity,
-	lookVec:       Vec2,
-	meteors:       [dynamic]Meteor,
-	towers:        [dynamic]Tower,
-	projectiles:   [dynamic]Entity,
-	comet:         Entity,
-	gameTime:      f64,
+GameState :: struct { //TODO: split some of this into new WorldState
+	player: Entity,
+	lookVec: Vec2,
+	meteors: [dynamic]Meteor,
+	towers: [dynamic]Tower,
+	projectiles: [dynamic]Entity,
+	vfx: [dynamic]Vfx,
+	comet: Entity,
+
+	gameTime: f64,
 	timeRemaining: f32,
 	gameOver:      bool,
 	money:         u32,
@@ -37,7 +38,7 @@ GameState :: struct {
 
 state: GameState = {
 	player = Entity{label = "jelly", pos = {200, -100}, shape = Rect{32}, alive = true},
-	comet = Entity{label = "comet", hp = 20.0, shape = Polygon{pentagon}},
+	comet = Entity{label = "comet", hp = 20.0, shape = Circle{200}},
 	timeRemaining = 60,
 	money = 20,
 }
@@ -88,6 +89,7 @@ init :: proc() {
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
 	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
+	init_meteor_polygons()
 	init_shader()
 }
 
@@ -126,6 +128,7 @@ update :: proc() {
 	wipe_opacity := cast(u8) min(255.0 * (1.0 - afterimage_amount) * 100.0 / curr_fps, 255.0)
 
 	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, wipe_opacity})
+	//rl.BeginBlendMode(.ADDITIVE) TODO: this would take some work but look nicer
 	switch currentScreen {
 	case .Title:
 		draw_title_screen()
@@ -167,6 +170,7 @@ update :: proc() {
 
 	}
 	rl.EndTextureMode()
+	//rl.EndBlendMode()
 
 	rl.BeginDrawing()
 	defer free_all(context.temp_allocator)

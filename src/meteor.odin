@@ -2,11 +2,26 @@ package game
 
 import "core:math"
 import "core:math/rand"
+import rl "vendor:raylib"
 
 MeteorType :: enum {SHOOTING_STAR, METEOROID, ASTEROID}
+
+POLYGON_CACHE_SIZE :: 64
+meteoroid_polygon_cache: [POLYGON_CACHE_SIZE][]Vec2
+asteroid_polygon_cache:  [POLYGON_CACHE_SIZE][]Vec2
+
+init_meteor_polygons :: proc() {
+	for i in 0..<POLYGON_CACHE_SIZE {
+		ms := meteor_presets[.METEOROID]
+		as := meteor_presets[.ASTEROID]
+		meteoroid_polygon_cache[i] = random_convex_polygon({0,0}, 0, 7,  ms.size*2, ms.size*2, u64(i),                       context.allocator)
+		asteroid_polygon_cache[i]  = random_convex_polygon({0,0}, 0, 17, as.size*2, as.size*2, u64(i + POLYGON_CACHE_SIZE), context.allocator)
+	}
+}
 Meteor :: struct {
 	using entity: Entity,
-	type : MeteorType,
+	type    : MeteorType,
+	polygon : []Vec2,
 }
 
 // These are somewhat high-level and open to interpretation
@@ -44,21 +59,25 @@ meteor_presets := [MeteorType]MeteorPreset{
 draw_meteor :: proc(m: ^Meteor, state: ^GameState) {
 	scale_hint: f32 = 1.0
 	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
-	switch m.type {
-	case .SHOOTING_STAR:
+	if m.polygon != nil {
+		draw_polygon_transformed(m.polygon, m.pos, m.rot, m.col, scale_hint)
+	} else {
 		draw_star(m.pos, m.rot, 5, entity_size(m)/2, 0.6, m.col, scale_hint)
-	case .METEOROID:
-		r := entity_bounds(m)
-		draw_random_convex_polygon(m.pos, m.rot, 7, r.x, r.y, m.id, m.col, scale_hint)
-	case .ASTEROID:
-		r := entity_bounds(m)
-		draw_random_convex_polygon(m.pos, m.rot, 17, r.x, r.y, m.id, m.col, scale_hint)
 	}
 }
 
-draw_large_meteor :: proc(e: ^Entity, state: ^GameState) {
-	scale_hint: f32 = 1.0
-	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
+meteor_on_death :: proc(m: ^Meteor, state: ^GameState) {
+	rl.PlaySound(rockDestroyedSound)
+	//spawn_sparks(state, m.pos, 10, 220, 0.7)
+	if m.type > .SHOOTING_STAR {
+		spawn_exploded(state, copy_and_rotate_vertices(m.polygon, m.pos, m.rot), m.col, m.velocity/2.0)
+	}
+
+	if m.type == .ASTEROID {
+		spawn_group(state, m.pos, .METEOROID)
+	} else {
+		spawn_bang(state, m.pos, entity_size(m) * 1.0)
+	}
 }
 
 update_meteors :: proc(state: ^GameState, delta: f32) {
@@ -89,16 +108,17 @@ handle_spawns :: proc(state: ^GameState, delta: f32) {
 		r := rand.float32() * 2 - 1
 		spawn_angle := r * math.PI + state.comet.rot
 		spawn_pos := Vec2{math.cos(spawn_angle), math.sin(spawn_angle)} * spawn_radius + state.comet.pos
-		spawn_group(state, spawn_pos)
+		type:=rand.choice_enum(MeteorType)
+		spawn_group(state, spawn_pos, type)
 		spawn_timer -= spawn_cooldown
 	}
 }
 
 spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 	preset := meteor_presets[type]
-	spawn(&state.meteors, pos, Meteor{
+	m := spawn(&state.meteors, pos, Meteor{
 		col = .RED,
-		death_sfx = rockDestroyedSound,
+		on_death = meteor_on_death,
 		draw = draw_meteor,
 		shape = Circle{preset.size}, //TODO: support polygonal asteroids
 		hp = preset.health,
@@ -108,12 +128,16 @@ spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 		velocity = get_normalized_vector_facing_target(pos, state.comet.pos) * preset.speed,
 		type = type,
 	})
+	switch type {
+	case .METEOROID: m.polygon = meteoroid_polygon_cache[m.id % POLYGON_CACHE_SIZE]
+	case .ASTEROID:  m.polygon = asteroid_polygon_cache[m.id % POLYGON_CACHE_SIZE]
+	case .SHOOTING_STAR: // nil
+	}
 }
 
-spawn_group :: proc(state: ^GameState, spawn_pos: Vec2) {
+spawn_group :: proc(state: ^GameState, spawn_pos: Vec2, type: MeteorType) {
 	spawn_count := rand.int31_max(5) + 1
 	for i in 0..<spawn_count {
-		type:=rand.choice_enum(MeteorType)
 		spawn_meteor(state, Vec2{spawn_pos.x + f32(i) * 50, spawn_pos.y}, type)
 	}
 }

@@ -37,14 +37,17 @@ Entity :: struct {
 	velocity:  Vec2,
 	rot:       f32,
 	rot_speed: f32,
-	shape:     Shape,
-	hp:        f32,
-	power:     f32,
-	col:       ThemeColor,
-	draw:      proc(e: ^Entity, state: ^GameState),
-	alive:     bool,
-	value:     u32,
-	death_sfx: rl.Sound,
+	shape: Shape,
+
+	hp: f32,
+	power: f32,
+	col: ThemeColor,
+
+	draw: proc(e: ^Entity, state: ^GameState),
+	on_death: proc(e: ^Entity, state: ^GameState),
+
+	alive: bool,
+	value: u32,
 }
 
 // --- Utils ---
@@ -60,10 +63,11 @@ spawn :: proc(list: ^[dynamic]$T, pos: Vec2, entity: T) -> ^T {
 	return &list[len(list) - 1]
 }
 
-remove_dead :: proc(list: ^[dynamic]$T) {
+remove_dead :: proc(list: ^[dynamic]$T, state: ^GameState) {
 	for i := len(list) - 1; i >= 0; i -= 1 {
-		if !list[i].alive {
-			if list[i].death_sfx.frameCount != 0 do rl.PlaySound(list[i].death_sfx)
+		e := &list[i]
+		if !e.alive {
+			if e.on_death != nil do e.on_death(e, state)
 			unordered_remove(list, i)
 		}
 	}
