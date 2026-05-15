@@ -38,6 +38,7 @@ Entity :: struct {
 	rot:       f32,
 	rot_speed: f32,
 	shape: Shape,
+	parent: ^Entity,
 
 	hp: f32,
 	power: f32,
@@ -99,19 +100,37 @@ entity_size :: proc(e: ^Entity) -> f32 {
 	return 0
 }
 
-// Transforms a world-space point into the entity's local coordinate system (unrotated, origin at entity pos).
+// --- Hierarchical Tranforms ---
+
+entity_world_pos :: proc(e: Entity) -> Vec2 {
+	return local_to_world(e, {0, 0})
+}
+
+entity_world_rot :: proc(e: Entity) -> f32 {
+	rot := e.rot
+	if e.parent != nil do rot += entity_world_rot(e.parent^) //HACK
+	return rot
+}
+
 world_to_local :: proc(e: Entity, p: Vec2) -> Vec2 {
-	d := p - e.pos
+	q := e.parent != nil ? world_to_local(e.parent^, p) : p
+	d := q - e.pos
 	c := math.cos(-e.rot)
 	s := math.sin(-e.rot)
 	return {d.x * c - d.y * s, d.x * s + d.y * c}
 }
 
-// Transforms a point from the entity's local coordinate system back into world space.
 local_to_world :: proc(e: Entity, p: Vec2) -> Vec2 {
 	c := math.cos(e.rot)
 	s := math.sin(e.rot)
-	return e.pos + Vec2{p.x * c - p.y * s, p.x * s + p.y * c}
+	world := e.pos + Vec2{p.x * c - p.y * s, p.x * s + p.y * c}
+	return e.parent != nil ? local_to_world(e.parent^, world) : world
+}
+
+attach_to_parent :: proc(child: ^Entity, parent: ^Entity) {
+	child.pos = world_to_local(parent^, child.pos)
+	child.rot -= parent.rot
+	child.parent = parent
 }
 
 // --- Collision ---
@@ -186,22 +205,26 @@ check_collision_between_polygons :: proc(vertices1: []Vec2, vertices2: []Vec2) -
 // Then for each axis, project both shapes onto the axis as a 1D line segment and see if they overlap.
 // They must overlap on all axes to be colliding.
 check_collision_sat :: proc(a: Entity, b: Entity) -> bool {
+	a_pos := entity_world_pos(a)
+	a_rot := entity_world_rot(a)
+	b_pos := entity_world_pos(b)
+	b_rot := entity_world_rot(b)
 	vertices1: []Vec2
 	#partial switch a_shape in a.shape {
 	case Polygon:
-		vertices1 = copy_and_rotate_vertices(a_shape.vertices, a.pos, a.rot)
+		vertices1 = copy_and_rotate_vertices(a_shape.vertices, a_pos, a_rot)
 	case Rect:
-		vertices1 = rect_to_vertices(a_shape, a.pos, a.rot)
+		vertices1 = rect_to_vertices(a_shape, a_pos, a_rot)
 	}
 	switch b_shape in b.shape {
 	case Polygon:
-		vertices2 := copy_and_rotate_vertices(b_shape.vertices, b.pos, b.rot)
+		vertices2 := copy_and_rotate_vertices(b_shape.vertices, b_pos, b_rot)
 		return check_collision_between_polygons(vertices1, vertices2)
 	case Rect:
-		vertices2 := rect_to_vertices(b_shape, b.pos, b.rot)
+		vertices2 := rect_to_vertices(b_shape, b_pos, b_rot)
 		return check_collision_between_polygons(vertices1, vertices2)
 	case Circle:
-		return check_collision_polygon_circle(vertices1, a.rot, b.pos, b_shape)
+		return check_collision_polygon_circle(vertices1, a_rot, b_pos, b_shape)
 	}
 	return true
 }
@@ -216,7 +239,7 @@ check_collision :: proc(a: Entity, b: Entity) -> bool {
 		case Rect, Polygon:
 			return check_collision_sat(b, a)
 		case Circle:
-			return rl.CheckCollisionCircles(a.pos, a_shape.radius, b.pos, b_shape.radius)
+			return rl.CheckCollisionCircles(entity_world_pos(a), a_shape.radius, entity_world_pos(b), b_shape.radius)
 		}
 	}
 	return false // One of the Entities has no shape?
@@ -322,8 +345,8 @@ draw_entity :: proc(e: ^Entity, state: ^GameState) {
 	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
 	if e.draw != nil {
 		e.draw(e, state)
-		if draw_debug do draw_enity_shape(e.shape, e.pos, e.rot, .DEBUG, scale_hint)
+		if draw_debug do draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), .DEBUG, scale_hint)
 	} else {
-		draw_enity_shape(e.shape, e.pos, e.rot, e.col, scale_hint)
+		draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), e.col, scale_hint)
 	}
 }

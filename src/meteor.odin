@@ -60,7 +60,7 @@ draw_meteor :: proc(m: ^Meteor, state: ^GameState) {
 	scale_hint: f32 = 1.0
 	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
 	if m.polygon != nil {
-		draw_polygon_transformed(m.polygon, m.pos, m.rot, m.col, scale_hint)
+		draw_polygon(m.pos, m.polygon, m.rot, m.col, scale_hint)
 	} else {
 		draw_star(m.pos, m.rot, 5, entity_size(m)/2, 0.6, m.col, scale_hint)
 	}

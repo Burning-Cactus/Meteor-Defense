@@ -117,10 +117,6 @@ draw_circle :: proc(pos:Vec2, radius:f32, col:ThemeColor, scale_hint:f32, bright
 
 // --- Compound Shapes ---
 
-draw_polygon_transformed :: proc(vertices: []Vec2, pos:Vec2, rot:f32, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
-	draw_polygon(pos, vertices, rot, col, scale_hint, brightness)
-}
-
 draw_rect :: proc(pos:Vec2, size:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) {
 	offset := size / 2
 	rot_mat := calculate_rotation_matrix(rot)
