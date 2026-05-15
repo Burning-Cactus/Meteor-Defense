@@ -54,11 +54,15 @@ Entity :: struct {
 // --- Utils ---
 
 next_entity_id: u64
+get_new_entity_id ::proc() -> u64 {
+	defer next_entity_id += 1
+	return next_entity_id
+}
+
 spawn :: proc(list: ^[dynamic]$T, pos: Vec2, entity: T) -> ^T {
 	e := entity
 	e.pos = pos
-	e.id = next_entity_id
-	next_entity_id += 1
+	e.id = get_new_entity_id()
 	e.alive = true
 	append(list, e)
 	return &list[len(list) - 1]
