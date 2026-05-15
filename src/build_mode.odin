@@ -20,7 +20,7 @@ draw_build_mode :: proc(state: ^GameState) {
 		current_pending_tower.col = .RED
 		can_build = false
 	} else if current_pending_tower.value > state.money {
-		current_pending_tower.col = .DEBUG
+		current_pending_tower.col = .YELLOW
 		can_build = false
 	} else {
 		current_pending_tower.col = .CYAN
