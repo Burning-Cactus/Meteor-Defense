@@ -104,6 +104,10 @@ entity_size :: proc(e: ^Entity) -> f32 {
 	return 0
 }
 
+entity_dist_squared :: proc(e: Entity, p:Vec2) ->f32 {
+	return dist_squared(entity_world_pos(e), p)
+}
+
 // --- Hierarchical Tranforms ---
 
 entity_world_pos :: proc(e: Entity) -> Vec2 {

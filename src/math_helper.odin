@@ -6,7 +6,7 @@ import "core:math/linalg"
 
 Vec2 :: [2]f32
 
-dist_squared :: proc(a: Vec2, b: Vec2) -> f32 {
+dist_squared :: proc(a: Vec2, b: Vec2 = {}) -> f32 {
 	x := a.x - b.x
 	y := a.y - b.y
 	return x * x + y * y

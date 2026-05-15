@@ -23,6 +23,7 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	projectiles: [dynamic]Entity,
 	vfx: [dynamic]Vfx,
 	comet: Entity,
+	highlighted_tower: ^Tower,
 
 	gameTime: f64,
 	timeRemaining: f32,
@@ -98,7 +99,8 @@ init :: proc() {
 
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
-	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
+	hitSound = rl.LoadSound("assets/sfx/hit0.wav")
+	asteroidHitSound = rl.LoadSound("assets/sfx/asteroid_hit.wav")
 	init_meteor_polygons()
 	init_shader()
 }

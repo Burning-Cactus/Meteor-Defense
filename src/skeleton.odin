@@ -113,13 +113,13 @@ world_to_bone :: proc(b: Bone, world: Vec2) -> Vec2 {
 }
 
 // Draw shapes on a bone. Coordinates are bone-local.
-draw_on_bone :: proc(b: Bone, shapes: []Drawshape, col: ThemeColor, scale_hint: f32) {
+draw_on_bone :: proc(b: Bone, shapes: []Drawshape, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brighness:f32=1.0 ) {
 	for s in shapes {
 		ws: Drawshape
 		ws.type  = s.type
 		ws.start = bone_to_world(b, s.start)
 		ws.end   = bone_to_world(b, s.end)
-		draw_shape(ws, scale_hint, col)
+		draw_shape(ws, scale_hint, col, brighness)
 	}
 }
 
@@ -140,9 +140,9 @@ flip_v :: proc(shapes: []Drawshape) -> []Drawshape {
 }
 // Draw shapes on two bones with the x-axis mirrored on the second.
 // Pass (right_bone, left_bone) and define shapes for the right side only.
-draw_bilateral :: proc(b_r, b_l: Bone, shapes: []Drawshape, col: ThemeColor, scale_hint: f32) {
-	draw_on_bone(b_r, shapes, col, scale_hint)
-	draw_on_bone(b_l, flip_h(shapes), col, scale_hint)
+draw_bilateral :: proc(b_r, b_l: Bone, shapes: []Drawshape, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) {
+	draw_on_bone(b_r, shapes, scale_hint, col, brightness)
+	draw_on_bone(b_l, flip_h(shapes), scale_hint, col, brightness)
 }
 
 open_polygon :: proc(pts: []Vec2, allocator := context.temp_allocator) -> []Drawshape {

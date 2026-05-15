@@ -2,12 +2,12 @@ package game
 
 import rl "vendor:raylib"
 
-current_tower_type:TowerType = .CANON_TOWER
+current_tower_type:TowerType
 current_pending_tower:Tower
 
 build_mode_tools := []UITool{
-	{ title = "Laser", use = proc() { activate_build_mode(.CANON_TOWER)}},
-	{title = "Cannon", use = proc() { activate_build_mode(.LASER_TOWER) }},
+	{title = "Laser", use = proc() { activate_build_mode(.LASER)}},
+	{title = "Cannon", use = proc() { activate_build_mode(.CANNON) }},
 }
 
 activate_build_mode :: proc(build_tower: TowerType) {
@@ -44,5 +44,6 @@ draw_build_mode :: proc(state: ^GameState) {
 		spawn(&state.towers, current_pending_tower.pos, current_pending_tower)
 		current_pending_tower = {}
 		state.buildMode = false
+		selected_tool = nil //HACK
 	}
 }
