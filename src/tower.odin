@@ -42,15 +42,15 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 
 	for i in 0..<towerCount {
 		tower := &state.towers[i]
-		if tower.attack_timer <= 0 && target != nil {
+		if tower.attack_timer > tower.cooldown && target != nil {
 			global_pos := local_to_world(tower, {})
 			dir := get_normalized_vector_facing_target(global_pos, target.pos)
 			tower.rot = -math.atan(dir.y / dir.x)
 			bulletSpeed :: 1000
-			spawn_bullet(state, global_pos + state.lookVec * 30, dir * bulletSpeed)
-			tower.attack_timer = tower.cooldown
+			spawn_bullet(state, global_pos, dir * bulletSpeed)
+			tower.attack_timer -= tower.cooldown
 		}
-		tower.attack_timer -= delta
+		tower.attack_timer += delta
 	}
 }
 
