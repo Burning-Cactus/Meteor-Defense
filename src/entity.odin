@@ -328,14 +328,14 @@ find_intersection_point_on_entity :: proc( startPos: Vec2, target: Entity) -> (p
 
 // --- Drawing ---
 
-draw_enity_shape :: proc(s: Shape, pos: Vec2, rot: f32, col: ThemeColor, scale_hint: f32) {
+draw_enity_shape :: proc(s: Shape, pos: Vec2, rot: f32, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) {
 	switch shape in s {
 	case Rect:
-		draw_rect(pos, shape.size, rot, col, scale_hint)
+		draw_rect(pos, shape.size, rot, scale_hint, col, brightness)
 	case Circle:
-		draw_circle(pos, shape.radius, col, scale_hint)
+		draw_circle(pos, shape.radius, scale_hint, col, brightness)
 	case Polygon:
-		draw_polygon(pos, shape.vertices, rot, col, scale_hint)
+		draw_polygon_transformed(shape.vertices, pos, rot, scale_hint, col, brightness)
 	}
 }
 
@@ -345,8 +345,8 @@ draw_entity :: proc(e: ^Entity, state: ^GameState) {
 	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
 	if e.draw != nil {
 		e.draw(e, state)
-		if draw_debug do draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), .DEBUG, scale_hint)
+		if draw_debug do draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), scale_hint, .DEBUG)
 	} else {
-		draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), e.col, scale_hint)
+		draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), scale_hint, e.col)
 	}
 }

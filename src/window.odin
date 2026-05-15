@@ -6,10 +6,7 @@ import fmt "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
-Screen :: enum {
-	Title,
-	Game,
-}
+Screen :: enum{Title, Game, Draw}
 currentScreen := Screen.Game
 
 run := true
@@ -39,8 +36,18 @@ GameState :: struct { //TODO: split some of this into new WorldState
 }
 
 state: GameState = {
-	player = Entity{label = "jelly", pos = {200, -100}, shape = Rect{32}, alive = true},
-	comet = Entity{label = "comet", hp = 20.0, shape = Polygon{pentagon}},
+	player = Entity{
+		label = "jelly",
+		pos = {200, -100},
+		shape = Rect{32},
+		alive = true,
+		draw = draw_player,
+	},
+	comet = Entity{
+		label = "comet",
+		hp = 20.0,
+		shape = Polygon{pentagon},
+	},
 	timeRemaining = 60,
 	money = 20,
 	difficulty_scale = 1,
@@ -170,7 +177,15 @@ update :: proc() {
 				rl.WHITE,
 			)
 		}
+	case .Draw:
+		rl.BeginMode2D(camera)
+		canvas_loop(delta)
+		rl.EndMode2D()
 
+		if i:= select_tool(canvas_tools[:]); i>=0 {
+			selected_tool = &canvas_tools[i]
+		}
+		draw_tools(canvas_tools[:], {10, 10}, .TOP_LEFT, .RIGHT)
 	}
 	rl.EndTextureMode()
 	//rl.EndBlendMode()

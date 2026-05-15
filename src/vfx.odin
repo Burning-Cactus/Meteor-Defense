@@ -33,15 +33,15 @@ draw_vfx :: proc(v: ^Vfx, state: ^GameState) {
 	case .BANG:
 		t := v.age / v.lifetime
 		radius := v.shape.(Circle).radius * t
-		draw_circle(v.pos, radius, v.col, scale_hint, (1.0-t) * 6.0)
+		draw_circle(v.pos, radius, scale_hint, v.col, (1.0-t) * 6.0)
 	case .SPARK:
 		trail_time: f32 = 0.1
 		trail_end := v.pos - v.velocity * trail_time
-		draw_line(trail_end, v.pos, v.col, scale_hint)
+		draw_line(trail_end, v.pos, scale_hint, v.col)
 	case .DEBRIS:
 		t   := v.age / v.lifetime
 		seg := copy_and_rotate_vertices(v.line[:], v.pos, v.rot)
-		draw_line(seg[0], seg[1], v.col, scale_hint, 2.0 - t)
+		draw_line(seg[0], seg[1], scale_hint, v.col, 2.0 - t)
 	}
 }
 

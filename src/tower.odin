@@ -29,10 +29,11 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 			// TODO: Cache the result somehow to reduce CPU usage
 			target := get_target(state)
 			if target != nil {
-				dir := get_normalized_vector_facing_target(tower.pos, target.pos)
+				global_pos := local_to_world(tower, {})
+				dir := get_normalized_vector_facing_target(global_pos, target.pos)
 				tower.rot = -math.atan(dir.y / dir.x)
 				bulletSpeed :: 1000
-				spawn_bullet(state, tower.pos + state.lookVec * 30, dir * bulletSpeed)
+				spawn_bullet(state, global_pos + state.lookVec * 30, dir * bulletSpeed)
 				tower.attack_timer = tower.stats.attack_cooldown
 			}
 		} else {

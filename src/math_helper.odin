@@ -152,3 +152,10 @@ nearest_bound :: proc(x, lo, hi: f32) -> (bound: f32, normal_sign: f32) {
 	}
 	return hi, 1
 }
+
+closest_point_on_segment :: proc(point, start, end: Vec2) -> Vec2 {
+	ab := end - start
+	denom := ab.x*ab.x + ab.y*ab.y
+	t := (ab.x*(point.x-start.x) + ab.y*(point.y-start.y)) / denom if denom != 0 else 0
+	return start + clamp(t, 0, 1) * ab
+}
