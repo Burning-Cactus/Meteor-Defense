@@ -17,7 +17,6 @@ prev_window_size: Vec2
 
 GameState :: struct { //TODO: split some of this into new WorldState
 	player: Entity,
-	lookVec: Vec2,
 	meteors: [dynamic]Meteor,
 	towers: [dynamic]Tower,
 	projectiles: [dynamic]Entity,
@@ -41,7 +40,7 @@ state: GameState = {
 		pos = {200, -100},
 		shape = Rect{32},
 		alive = true,
-		draw = draw_player,
+//		draw = draw_player,
 	},
 	comet = Entity{
 		label = "comet",

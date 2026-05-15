@@ -1,7 +1,6 @@
 // The 2D world, all the entities inside it, and how they interact with eachother.
 package game
 
-import "core:math"
 import rl "vendor:raylib"
 
 laserSound: rl.Sound
@@ -34,8 +33,7 @@ game_loop :: proc(delta: f32) {
 	handle_input()
 	player := &state.player
 	player.pos += player.velocity * delta
-	state.lookVec = get_normalized_vector_facing_target(player.pos, state.cursor)
-	player.rot = math.atan(state.lookVec.y / state.lookVec.x)
+	player.rot = angle_facing(player.pos, state.cursor)
 
 	meteorCount := len(state.meteors)
 	projectileCount := len(state.projectiles)
@@ -75,7 +73,8 @@ handle_input :: proc() {
 	if rl.IsKeyDown(.S) do player.velocity.y += playerSpeed
 	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) {
 		bulletSpeed :: 500
-		spawn_bullet(&state, player.pos + state.lookVec * 30, state.lookVec * bulletSpeed)
+		bullet_normal := unit_vector(player.rot)
+		spawn_bullet(&state, player.pos + bullet_normal * 30, bullet_normal * bulletSpeed)
 	}
 }
 

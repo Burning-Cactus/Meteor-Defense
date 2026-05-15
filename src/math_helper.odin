@@ -27,8 +27,7 @@ get_normalized_vector_facing_target :: proc(base: Vec2, target: Vec2) -> Vec2 {
 }
 
 vec_angle :: proc(v: Vec2) -> f32 {
-	if v == {} do return 0
-	return math.atan(v.y / v.x)
+	return math.atan2(v.y, v.x)
 }
 
 angle_facing :: proc(from: Vec2, to: Vec2) -> f32 {
