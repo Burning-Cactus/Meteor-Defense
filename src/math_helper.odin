@@ -27,6 +27,7 @@ get_normalized_vector_facing_target :: proc(base: Vec2, target: Vec2) -> Vec2 {
 }
 
 vec_angle :: proc(v: Vec2) -> f32 {
+	if v == {} do return 0
 	return math.atan(v.y / v.x)
 }
 
@@ -40,6 +41,7 @@ unit_vector :: proc(angle: f32) -> Vec2 {
 }
 
 normalize :: proc(vector: Vec2) -> Vec2 {
+	if vector == {} do return {0,1}
 	distance := math.sqrt(vector.x * vector.x + vector.y * vector.y)
 	return vector / distance
 }
@@ -116,4 +118,37 @@ project_shape_onto_axis :: proc(vertices: []Vec2, axis: Vec2) -> (min, max: f32)
 	}
 
 	return min, max
+}
+
+// Parametric intersection of segment (a, a+r) with segment (b, b+s).
+// Returns t along r and u along s such that a+t*r = b+u*s.
+// ok is false when the segments are parallel.
+segment_intersect :: proc(a, r, b, s: Vec2) -> (t, u: f32, ok: bool) {
+	denom := linalg.cross(r, s)
+	if denom == 0 do return
+	diff := b - a
+	t = linalg.cross(diff, s) / denom
+	u = linalg.cross(diff, r) / denom
+	ok = true
+	return
+}
+
+// Returns the outward-facing normal of an edge belonging to a convex polygon centered at the origin.
+// edge_start is the first vertex of the edge and is used to resolve which perpendicular faces outward.
+outward_edge_normal :: proc(edge, edge_start: Vec2) -> Vec2 {
+	n := Vec2{-edge.y, edge.x}
+	if dot_product(n, edge_start) < 0 do n = -n
+	return normalize(n)
+}
+
+nearest :: proc (f:f32, a:f32, b:f32) -> f32{
+	return a if abs(f-a) < abs(f-b) else b
+}
+
+// Returns the nearest boundary of [lo, hi] to x, and its outward normal sign (-1 for lo, +1 for hi).
+nearest_bound :: proc(x, lo, hi: f32) -> (bound: f32, normal_sign: f32) {
+	if x - lo <= hi - x {
+		return lo, -1
+	}
+	return hi, 1
 }

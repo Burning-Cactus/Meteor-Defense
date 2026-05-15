@@ -3,8 +3,6 @@
 package game
 import rl "vendor:raylib"
 import "core:math"
-import "core:math/linalg"
-import "core:fmt"
 
 Rect :: struct {
 	size: Vec2,
@@ -99,6 +97,21 @@ entity_size :: proc(e: ^Entity) -> f32 {
 		break
 	}
 	return 0
+}
+
+// Transforms a world-space point into the entity's local coordinate system (unrotated, origin at entity pos).
+world_to_local :: proc(e: Entity, p: Vec2) -> Vec2 {
+	d := p - e.pos
+	c := math.cos(-e.rot)
+	s := math.sin(-e.rot)
+	return {d.x * c - d.y * s, d.x * s + d.y * c}
+}
+
+// Transforms a point from the entity's local coordinate system back into world space.
+local_to_world :: proc(e: Entity, p: Vec2) -> Vec2 {
+	c := math.cos(e.rot)
+	s := math.sin(e.rot)
+	return e.pos + Vec2{p.x * c - p.y * s, p.x * s + p.y * c}
 }
 
 // --- Collision ---
@@ -218,45 +231,76 @@ check_collision_any :: proc(a: Entity, list: [dynamic]$T) -> bool {
 
 // --- Intersection ---
 
-find_intersection_point_on_entity :: proc( startPos: Vec2, target: Entity) -> Vec2 {
-	rayVec := target.pos - startPos
-	rayLength := math.sqrt(rayVec.x * rayVec.x + rayVec.y * rayVec.y)
-	rayNormal := rayVec / rayLength
-	result: Vec2
+find_intersection_point_on_rect :: proc(start_pos: Vec2, r: Rect) -> (pos: Vec2, normal: Vec2) {
+	r_start := -r.size / 2
+	r_end   :=  r.size / 2
+
+	outside := (
+		start_pos.x < r_start.x ||
+		start_pos.x > r_end.x ||
+		start_pos.y < r_start.y ||
+		start_pos.y > r_end.y
+	)
+	if outside {
+		pos = {
+			math.clamp(start_pos.x, r_start.x, r_end.x),
+			math.clamp(start_pos.y, r_start.y, r_end.y),
+		}
+		normal = normalize(start_pos - pos)
+		return
+	}
+
+	// Interior: snap to the nearest face.
+	bx, nx := nearest_bound(start_pos.x, r_start.x, r_end.x)
+	by, ny := nearest_bound(start_pos.y, r_start.y, r_end.y)
+	if abs(start_pos.x - bx) < abs(start_pos.y - by) {
+		pos = {bx, start_pos.y}
+		normal = {nx, 0}
+	} else {
+		pos = {start_pos.x, by}
+		normal = {0, ny}
+	}
+	return
+}
+
+find_intersection_point_on_circle :: proc(start_pos: Vec2, c:Circle) -> (pos:Vec2, normal:Vec2) {
+	normal = normalize(start_pos)
+	pos = normal * c.radius
+	return
+}
+
+find_intersection_point_on_polygon :: proc(start_pos: Vec2, poly: Polygon) -> (pos: Vec2, normal: Vec2) {
+	n := len(poly.vertices)
+	best_u: f32 = math.F32_MAX
+	for i in 0..<n {
+		a := poly.vertices[i]
+		r := poly.vertices[(i + 1) % n] - a
+		// Ray from origin outward through start_pos — finds the boundary on the start_pos
+		// side for both interior and exterior points (exterior hits at u<1, interior at u>1).
+		t, u, ok := segment_intersect(a, r, {0, 0}, start_pos)
+		if !ok || t < 0 || t > 1 || u < 0 || u >= best_u do continue
+		best_u = u
+		pos = a + t * r
+		normal = outward_edge_normal(r, a)
+	}
+	return
+}
+
+find_intersection_point_on_entity :: proc( startPos: Vec2, target: Entity) -> (pos:Vec2, normal:Vec2) {
+	local_startpos := world_to_local(target, startPos)
+
 	switch shape in target.shape {
 	case Rect:
-		fmt.printf("Not implemented!\n")
+		pos, normal = find_intersection_point_on_rect( local_startpos, shape )
 	case Polygon:
-		vertices := copy_and_rotate_vertices(shape.vertices, target.pos, target.rot)
+		pos, normal = find_intersection_point_on_polygon(local_startpos, shape)
 		// Solve for scalars t and u
-		last_idx := len(shape.vertices) - 1
-		for i in 0..<last_idx {
-			p := vertices[i]
-			r := vertices[i+1]-p
-			s := rayVec
-			if linalg.cross(r, s) == 0 do continue
-			t := linalg.cross(startPos - p, s / linalg.cross(r, s))
-			if t < 0 || t > 1 do continue
-			u := linalg.cross(p - startPos, r / linalg.cross(s, r))
-			if u < 0 || u > 1 do continue
-			return p + t * r
-		}
-		p := vertices[last_idx]
-		r := vertices[0]-p
-		s := rayVec
-		if linalg.cross(r, s) == 0 {
-			return result
-		}
-		t := linalg.cross(startPos - p, s / linalg.cross(r, s))
-		if t < 0 || t > 1 do return result
-		u := linalg.cross(p - startPos, r / linalg.cross(s, r))
-		if u < 0 || u > 1 do return result
-		return p + t * r
 	case Circle:
-		dist := rayLength - shape.radius
-		result = startPos + rayNormal * dist
+		pos, normal = find_intersection_point_on_circle( local_startpos, shape )
 	}
-	return result
+	pos = local_to_world(target, pos)
+	normal = normalize(local_to_world(target, normal)) //TODO rotating would be more efficient
+	return pos, normal
 }
 
 // --- Drawing ---
