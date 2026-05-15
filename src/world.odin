@@ -1,11 +1,10 @@
 // The 2D world, all the entities inside it, and how they interact with eachother.
 package game
 
+import "core:math/linalg"
 import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
-
-Vec2 :: [2]f32
 
 laserSound: rl.Sound
 rockDestroyedSound: rl.Sound
@@ -99,7 +98,31 @@ find_intersection_point_on_entity :: proc(
 	case Rect:
 		fmt.printf("Not implemented!\n")
 	case Polygon:
-		fmt.printf("Not implemented\n")
+		vertices := copy_and_rotate_vertices(shape.vertices, target.pos, target.rot)
+		// Solve for scalars t and u
+		last_idx := len(shape.vertices) - 1
+		for i in 0..<last_idx {
+			p := vertices[i]
+			r := vertices[i+1]-p
+			s := rayVec
+			if linalg.cross(r, s) == 0 do continue
+			t := linalg.cross(startPos - p, s / linalg.cross(r, s))
+			if t < 0 || t > 1 do continue
+			u := linalg.cross(p - startPos, r / linalg.cross(s, r))
+			if u < 0 || u > 1 do continue
+			return p + t * r
+		}
+		p := vertices[last_idx]
+		r := vertices[0]-p
+		s := rayVec
+		if linalg.cross(r, s) == 0 {
+			return result
+		}
+		t := linalg.cross(startPos - p, s / linalg.cross(r, s))
+		if t < 0 || t > 1 do return result
+		u := linalg.cross(p - startPos, r / linalg.cross(s, r))
+		if u < 0 || u > 1 do return result
+		return p + t * r
 	case Circle:
 		dist := rayLength - shape.radius
 		result = startPos + rayNormal * dist

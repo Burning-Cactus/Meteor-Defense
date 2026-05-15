@@ -38,7 +38,7 @@ GameState :: struct { //TODO: split some of this into new WorldState
 
 state: GameState = {
 	player = Entity{label = "jelly", pos = {200, -100}, shape = Rect{32}, alive = true},
-	comet = Entity{label = "comet", hp = 20.0, shape = Circle{200}},
+	comet = Entity{label = "comet", hp = 20.0, shape = Polygon{pentagon}},
 	timeRemaining = 60,
 	money = 20,
 }

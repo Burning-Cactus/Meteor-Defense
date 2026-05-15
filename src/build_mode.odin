@@ -1,6 +1,7 @@
 package game
 
 import rl "vendor:raylib"
+import "core:math"
 
 current_tower_type := &laserTowerStats
 current_pending_tower:Tower
@@ -11,6 +12,20 @@ update_build_mode :: proc(state: ^GameState) {
 	current_pending_tower.rot = angle_facing(current_pending_tower.pos, state.cursor)
 	current_pending_tower.stats = current_tower_type
 	current_pending_tower.shape = current_tower_type.shape // is there a way to automate this?
+
+	normal := normalize(state.cursor - current_pending_tower.pos)
+	offset: f32
+	switch shape in current_pending_tower.shape {
+	case Circle:
+		offset = shape.radius
+	case Rect:
+		offset = math.min(shape.size.x, shape.size.y)
+		offset /= 2
+	case Polygon:
+		vertex := find_closest_vertex(current_pending_tower.pos, shape.vertices)
+		offset = math.sqrt(dist_squared(current_pending_tower.pos, vertex))
+	}
+	current_pending_tower.pos += normal * offset
 }
 
 draw_build_mode :: proc(state: ^GameState) {
