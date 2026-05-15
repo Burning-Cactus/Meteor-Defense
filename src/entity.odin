@@ -2,6 +2,7 @@
 // Includes abstract definitions and more concrete specific entities; how they're drawn, and how they behave
 package game
 import rl "vendor:raylib"
+import "core:math"
 
 Rect :: struct {
 	size: Vec2,
@@ -9,10 +10,24 @@ Rect :: struct {
 Circle :: struct {
 	radius: f32,
 }
+Polygon :: struct {
+	vertices: []Vec2,
+}
+
+one_fifth: f32 : math.PI * 2 / 5
+
+pentagon := []Vec2{
+	{200 * math.cos(f32(0)), 200 * math.sin(f32(0))},
+	{200 * math.cos(one_fifth), 200 * math.sin(one_fifth)},
+	{200 * math.cos(one_fifth * 2), 200 * math.sin(one_fifth * 2)},
+	{200 * math.cos(one_fifth * 3), 200 * math.sin(one_fifth * 3)},
+	{200 * math.cos(one_fifth * 4), 200 * math.sin(one_fifth * 4)},
+}
 
 Shape :: union {
 	Rect,
 	Circle,
+	Polygon,
 }
 
 Entity :: struct {
@@ -55,23 +70,27 @@ remove_dead :: proc(list: ^[dynamic]$T) {
 }
 
 entity_bounds :: proc(e: ^Entity) -> Vec2 {
-	switch _ in e.shape {
+	switch shape in e.shape {
 	case Rect:
-		return e.shape.(Rect).size
+		return shape.size
+	case Polygon:
+		break
 	case Circle:
-		x := e.shape.(Circle).radius * 2.0
+		x := shape.radius * 2.0
 		return {x, x}
 	}
 	return {0, 0}
 }
 
 entity_size :: proc(e: ^Entity) -> f32 {
-	switch _ in e.shape {
+	switch shape in e.shape {
 	case Rect:
-		r := e.shape.(Rect).size
+		r := shape.size
 		return max(r.y, r.y)
 	case Circle:
-		return e.shape.(Circle).radius * 2.0
+		return shape.radius * 2.0
+	case Polygon:
+		break
 	}
 	return 0
 }
@@ -95,72 +114,87 @@ find_closest_vertex :: proc(pos: Vec2, vertices: []Vec2) -> Vec2 {
 	return closest_vertex
 }
 
-// Check collision between two convex polygons of any rotation.
-// This is done by getting the axes perpendicular to every edge of each shape.
-// Then for each axis, project both shapes onto the axis as a 1D line segment and see if they overlap.
-// They must overlap on all axes to be colliding.
-check_collision_sat :: proc(a: Entity, b: Entity) -> bool {
-	a_shape := a.shape.(Rect)
-	switch b_shape in b.shape {
-	case Rect:
-		// Convert rectangles to vertex format
-		vertices1 := rect_to_vertices(a_shape, a.pos, a.rot)
-		vertices2 := rect_to_vertices(b_shape, b.pos, b.rot)
-		axes1 := calculate_normals_of_edges(vertices1)
-		axes2 := calculate_normals_of_edges(vertices2)
+check_collision_polygon_circle :: proc(vertices1: []Vec2, a_rot: f32, b_pos: Vec2, b_shape: Circle) -> bool {
+	// The comparison from the circle's side is just the axis connecting the center of the circle and the nearest vertex of the polygon.
+	{
+		closest_vertex := find_closest_vertex(b_pos, vertices1)
+		closest_axis := normalize(closest_vertex - b_pos)
+		min1, max1 := project_shape_onto_axis(vertices1, closest_axis)
+		circle_projection := dot_product(b_pos, closest_axis)
+		min2 := circle_projection - b_shape.radius
+		max2 := circle_projection + b_shape.radius
+		if min1 > max2 || min2 > max1 {
+			return false
+		}
+	}
 
-		for i in 0 ..< len(axes1) {
-			// Project the shape onto each and every axis.
-			min1, max1 := project_shape_onto_axis(vertices1, axes1[i])
-			min2, max2 := project_shape_onto_axis(vertices2, axes1[i])
-			if min1 > max2 || min2 > max1 {
-				return false
-			}
-		}
-		for i in 0 ..< len(axes2) {
-			min1, max1 := project_shape_onto_axis(vertices1, axes2[i])
-			min2, max2 := project_shape_onto_axis(vertices2, axes2[i])
-			if min1 > max2 || min2 > max1 {
-				return false
-			}
-		}
-	case Circle:
-		vertices1 := rect_to_vertices(a_shape, a.pos, a.rot)
-		// The comparison from the circle's side is just the axis connecting the center of the circle and the nearest vertex of the polygon.
-		{
-			closest_vertex := find_closest_vertex(b.pos, vertices1)
-			closest_axis := normalize(closest_vertex - b.pos)
-			min1, max1 := project_shape_onto_axis(vertices1, closest_axis)
-			circle_projection := dot_product(b.pos, closest_axis)
-			min2 := circle_projection - b_shape.radius
-			max2 := circle_projection + b_shape.radius
-			if min1 > max2 || min2 > max1 {
-				return false
-			}
-		}
-
-		axes1 := calculate_normals_of_edges(vertices1)
-		for i in 0 ..< len(axes1) {
-			min1, max1 := project_shape_onto_axis(vertices1, axes1[i])
-			circle_projection := dot_product(b.pos, axes1[i])
-			min2 := circle_projection - b_shape.radius
-			max2 := circle_projection + b_shape.radius
-			if min1 > max2 || min2 > max1 {
-				return false
-			}
+	axes1 := calculate_normals_of_edges(vertices1)
+	for i in 0 ..< len(axes1) {
+		min1, max1 := project_shape_onto_axis(vertices1, axes1[i])
+		circle_projection := dot_product(b_pos, axes1[i])
+		min2 := circle_projection - b_shape.radius
+		max2 := circle_projection + b_shape.radius
+		if min1 > max2 || min2 > max1 {
+			return false
 		}
 	}
 	return true
 }
 
-check_collision :: proc(a: Entity, b: Entity) -> bool {
-	if a == b do return false // or perhaps true?
-	switch a_shape in a.shape {
+check_collision_between_polygons :: proc(vertices1: []Vec2, vertices2: []Vec2) -> bool {
+	axes1 := calculate_normals_of_edges(vertices1)
+	axes2 := calculate_normals_of_edges(vertices2)
+	for i in 0 ..< len(axes1) {
+		// Project the shape onto each and every axis.
+		min1, max1 := project_shape_onto_axis(vertices1, axes1[i])
+		min2, max2 := project_shape_onto_axis(vertices2, axes1[i])
+		if min1 > max2 || min2 > max1 {
+			return false
+		}
+	}
+	for i in 0 ..< len(axes2) {
+		min1, max1 := project_shape_onto_axis(vertices1, axes2[i])
+		min2, max2 := project_shape_onto_axis(vertices2, axes2[i])
+		if min1 > max2 || min2 > max1 {
+			return false
+		}
+	}
+	return true
+}
+
+// Check collision between two convex polygons of any rotation.
+// This is done by getting the axes perpendicular to every edge of each shape.
+// Then for each axis, project both shapes onto the axis as a 1D line segment and see if they overlap.
+// They must overlap on all axes to be colliding.
+check_collision_sat :: proc(a: Entity, b: Entity) -> bool {
+	vertices1: []Vec2
+	#partial switch a_shape in a.shape {
+	case Polygon:
+		vertices1 = copy_and_rotate_vertices(a_shape.vertices, a.pos, a.rot)
 	case Rect:
+		vertices1 = rect_to_vertices(a_shape, a.pos, a.rot)
+	}
+	switch b_shape in b.shape {
+	case Polygon:
+		vertices2 := copy_and_rotate_vertices(b_shape.vertices, b.pos, b.rot)
+		return check_collision_between_polygons(vertices1, vertices2)
+	case Rect:
+		vertices2 := rect_to_vertices(b_shape, b.pos, b.rot)
+		return check_collision_between_polygons(vertices1, vertices2)
+	case Circle:
+		return check_collision_polygon_circle(vertices1, a.rot, b.pos, b_shape)
+	}
+	return true
+}
+
+check_collision :: proc(a: Entity, b: Entity) -> bool {
+	//if a == b do return false // or perhaps true?
+	switch a_shape in a.shape {
+	case Rect, Polygon:
 		return check_collision_sat(a, b)
 	case Circle:
 		switch b_shape in b.shape {
-		case Rect:
+		case Rect, Polygon:
 			return check_collision_sat(b, a)
 		case Circle:
 			return rl.CheckCollisionCircles(a.pos, a_shape.radius, b.pos, b_shape.radius)
@@ -179,11 +213,13 @@ check_collision_any :: proc(a: Entity, list: [dynamic]$T) -> bool {
 // --- Drawing ---
 
 draw_enity_shape :: proc(s: Shape, pos: Vec2, rot: f32, col: ThemeColor, scale_hint: f32) {
-	switch _ in s {
+	switch shape in s {
 	case Rect:
-		draw_rect(pos, s.(Rect).size, rot, col, scale_hint)
+		draw_rect(pos, shape.size, rot, col, scale_hint)
 	case Circle:
-		draw_circle(pos, s.(Circle).radius, col, scale_hint)
+		draw_circle(pos, shape.radius, col, scale_hint)
+	case Polygon:
+		draw_polygon(pos, shape.vertices, rot, col, scale_hint)
 	}
 }
 
@@ -198,4 +234,3 @@ draw_entity :: proc(e: ^Entity, state: ^GameState) {
 		draw_enity_shape(e.shape, e.pos, e.rot, e.col, scale_hint)
 	}
 }
-

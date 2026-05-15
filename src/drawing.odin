@@ -1,4 +1,5 @@
 package game
+import "core:fmt"
 import "core:math"
 import "core:math/rand"
 import rl "vendor:raylib"
@@ -78,7 +79,7 @@ draw_circle :: proc(pos: Vec2, radius: f32, col: ThemeColor, scale_hint: f32) {
 
 draw_rect :: proc(pos: Vec2, size: Vec2, rot: f32, col: ThemeColor, scale_hint: f32) {
 	offset := size / 2
-	rot_mat := get_rotation_matrix(rot)
+	rot_mat := calculate_rotation_matrix(rot)
 	a := Vec2{-offset.x, -offset.y} * rot_mat + pos
 	b := Vec2{-offset.x, offset.y} * rot_mat + pos
 	c := Vec2{offset.x, offset.y} * rot_mat + pos
@@ -89,6 +90,18 @@ draw_rect :: proc(pos: Vec2, size: Vec2, rot: f32, col: ThemeColor, scale_hint: 
 	draw_line(d, a, col, scale_hint)
 }
 
+draw_polygon :: proc(pos: Vec2, vertices: []Vec2, rot: f32, col: ThemeColor, scale_hint: f32) {
+	last_idx := len(vertices) - 1
+	rot_mat := calculate_rotation_matrix(rot)
+	for i in 0 ..< last_idx {
+		a := vertices[i] * rot_mat + pos
+		b := vertices[i + 1] * rot_mat + pos
+		draw_line(a, b, col, scale_hint)
+	}
+	a := vertices[last_idx] * rot_mat + pos
+	b := vertices[0] * rot_mat + pos
+	draw_line(a, b, col, scale_hint)
+}
 
 draw_star :: proc(
 	pos: Vec2,
@@ -151,4 +164,3 @@ draw_shape :: proc(s: Drawshape, col: ThemeColor, scale_hint: f32) {
 		draw_circle(s.start, rl.Vector2Distance(s.start, s.end), col, scale_hint)
 	}
 }
-

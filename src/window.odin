@@ -37,7 +37,7 @@ GameState :: struct {
 
 state: GameState = {
 	player = Entity{label = "jelly", pos = {200, -100}, shape = Rect{32}, alive = true},
-	comet = Entity{label = "comet", hp = 20.0, shape = Circle{200}}, // TODO change back to circle
+	comet = Entity{label = "comet", hp = 20.0, shape = Polygon{pentagon}},
 	timeRemaining = 60,
 	money = 20,
 }
@@ -199,4 +199,3 @@ shutdown :: proc() {
 	shutdown_shader()
 	rl.CloseWindow()
 }
-

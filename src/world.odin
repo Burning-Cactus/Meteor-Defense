@@ -27,12 +27,14 @@ game_loop :: proc(delta: f32) {
 
 	handle_spawns(&state, delta)
 
+	state.comet.rot += 0.1 * delta
+
 	// Handle entities
 	handle_input()
 	player := &state.player
 	player.pos += player.velocity * delta
 	state.lookVec = get_normalized_vector_facing_target(player.pos, state.cursor)
-	player.rot = math.atan(-state.lookVec.y / state.lookVec.x)
+	player.rot = math.atan(state.lookVec.y / state.lookVec.x)
 
 	meteorCount := len(state.meteors)
 	projectileCount := len(state.projectiles)
@@ -90,6 +92,8 @@ find_intersection_point_on_entity :: proc(
 	switch shape in target.shape {
 	case Rect:
 		fmt.printf("Not implemented!\n")
+	case Polygon:
+		fmt.printf("Not implemented\n")
 	case Circle:
 		dist := rayLength - shape.radius
 		result = startPos + rayNormal * dist
@@ -116,4 +120,3 @@ draw_game_screen :: proc(state: ^GameState) {
 		draw_build_mode(state)
 	}
 }
-

@@ -2,6 +2,7 @@
 
 package game
 import "core:math"
+import "core:math/linalg"
 
 dist_squared :: proc(a: Vec2, b: Vec2) -> f32 {
 	x := a.x - b.x
@@ -13,14 +14,8 @@ sqr :: proc(f: f32) -> f32 {
 	return f * f
 }
 
-get_rotation_matrix :: proc(radians: f32) -> matrix[2, 2]f32 {
-	c := math.cos(radians)
-	s := math.sin(radians)
-	m := matrix[2, 2]f32{
-		c, -s,
-		s, c,
-	}
-	return m
+calculate_rotation_matrix :: proc(radians: f32) -> matrix[2, 2]f32 {
+	return linalg.matrix2_rotate(-radians)
 }
 
 get_normalized_vector_facing_target :: proc(base: Vec2, target: Vec2) -> Vec2 {
@@ -62,23 +57,28 @@ rect_to_vertices :: proc(
 	rot: f32,
 	allocator := context.temp_allocator,
 ) -> []Vec2 {
-	vertices := make([]Vec2, 4, allocator)
 	offset_x := rect.size.x / 2
 	offset_y := rect.size.y / 2
-	vertices[0] = {-offset_x, -offset_y}
-	vertices[1] = {-offset_x, offset_y}
-	vertices[2] = {offset_x, offset_y}
-	vertices[3] = {offset_x, -offset_y}
-	if rot != 0 {
-		rot_mat := get_rotation_matrix(rot)
-		for i in 0 ..< 4 {
-			vertices[i] = rot_mat * vertices[i]
-		}
+	vertices := [4]Vec2 {
+		{-offset_x, -offset_y},
+		{-offset_x, offset_y},
+		{offset_x, offset_y},
+		{offset_x, -offset_y},
 	}
-	for i in 0 ..< 4 {
-		vertices[i] += offset_pos
+	return copy_and_rotate_vertices(vertices[:], offset_pos, rot, allocator)
+}
+
+/*
+	Allocate a new array copied from the vertices passed in. Rotations are applied to the copy.
+*/
+copy_and_rotate_vertices :: proc(vertices: []Vec2, offset_pos: Vec2, rot: f32, allocator := context.temp_allocator) -> []Vec2 {
+	copy := make([]Vec2, len(vertices), allocator)
+	rot_mat := calculate_rotation_matrix(rot)
+	for i in 0..<len(vertices) {
+		copy[i] = vertices[i] * rot_mat
+		copy[i] += offset_pos
 	}
-	return vertices
+	return copy
 }
 
 // Calculate and return an array of the normal vectors perpendicular to each edge formed by the vertices passed in.
@@ -115,4 +115,3 @@ project_shape_onto_axis :: proc(vertices: []Vec2, axis: Vec2) -> (min, max: f32)
 
 	return min, max
 }
-
