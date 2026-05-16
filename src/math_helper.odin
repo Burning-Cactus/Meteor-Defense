@@ -6,7 +6,7 @@ import "core:math/linalg"
 
 Vec2 :: [2]f32
 
-dist_squared :: proc(a: Vec2, b: Vec2) -> f32 {
+dist_squared :: proc(a: Vec2, b: Vec2 = {}) -> f32 {
 	x := a.x - b.x
 	y := a.y - b.y
 	return x * x + y * y
@@ -27,8 +27,7 @@ get_normalized_vector_facing_target :: proc(base: Vec2, target: Vec2) -> Vec2 {
 }
 
 vec_angle :: proc(v: Vec2) -> f32 {
-	if v == {} do return 0
-	return math.atan(v.y / v.x)
+	return math.atan2(v.y, v.x)
 }
 
 angle_facing :: proc(from: Vec2, to: Vec2) -> f32 {
@@ -151,4 +150,11 @@ nearest_bound :: proc(x, lo, hi: f32) -> (bound: f32, normal_sign: f32) {
 		return lo, -1
 	}
 	return hi, 1
+}
+
+closest_point_on_segment :: proc(point, start, end: Vec2) -> Vec2 {
+	ab := end - start
+	denom := ab.x*ab.x + ab.y*ab.y
+	t := (ab.x*(point.x-start.x) + ab.y*(point.y-start.y)) / denom if denom != 0 else 0
+	return start + clamp(t, 0, 1) * ab
 }

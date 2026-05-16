@@ -6,16 +6,24 @@ import rl "vendor:raylib"
 line_thickness :: 4.0
 line_resolution ::  48/*lines per 100 pixels*/ / 100.0
 
-shape_T :: enum {
-	DOT,
-	LINE,
-	CIRCLE,
+Drawshape_Type :: enum {
+	DOT, LINE, CIRCLE,
 }
 Drawshape :: struct {
-	type:  shape_T,
-	start: Vec2,
-	end:   Vec2,
+	type : Drawshape_Type,
+	start : Vec2,
+	end : Vec2,
 }
+DrawshapePro :: struct { //dumb naming scheme but raylib uses it so why not
+	using drawshape: Drawshape,
+	col: ThemeColor,
+	brightness: f32,
+}
+DrawshapeGroup :: struct {
+	name:     string,
+	contents: [dynamic]^Drawable,
+}
+Drawable :: union{ Drawshape, DrawshapePro, ^DrawshapeGroup }
 
 ThemeColor :: enum {
 	PRIMARY,
@@ -27,7 +35,7 @@ ThemeColor :: enum {
 	DEBUG,
 }
 
-draw_opacity :u8: 60
+draw_opacity :u8: 40
 theme := [ThemeColor][3]u8 {
 	.FILL =   	{0,    0,    0,  },
 	.PRIMARY =	{0xff, 0xff, 0xff},
@@ -42,7 +50,7 @@ theme := [ThemeColor][3]u8 {
 
 modulate :: proc(rgb: [3]u8, brightness:f32) -> rl.Color {
 	alpha := cast(u8) (cast(f32)draw_opacity * brightness)
-	return {rgb.r, rgb.g, rgb.g, alpha}
+	return {rgb.r, rgb.g, rgb.b, alpha}
 }
 segments :: proc(radius:f32) -> i32{
 	return  max(4, i32(math.ceil(math.TAU * math.sqrt(radius) * line_resolution)))
@@ -91,11 +99,12 @@ random_convex_polygon :: proc(pos:Vec2, rot:f32, points:i32, width_approx:f32, h
 
 // --- Primative Shapes ---
 
-draw_dot :: proc(pos:Vec2, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
+draw_dot :: proc(pos:Vec2, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
 	// drawing slightly oversized because it doesn't look right otherwise
 	rl.DrawCircleV(pos, line_thickness *0.8 / scale_hint, modulate(theme[col], brightness))
 }
-draw_line :: proc(start:Vec2, end:Vec2, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
+
+draw_line :: proc(start:Vec2, end:Vec2, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
 	angle := vec_angle(end - start)
 	a1 := math.to_degrees(angle + math.PI)
 	a2 := math.to_degrees(angle - math.PI)
@@ -105,59 +114,138 @@ draw_line :: proc(start:Vec2, end:Vec2, col:ThemeColor, scale_hint:f32, brightne
 	rl.DrawCircleSector(start, line_thickness/2.0/scale_hint, a1, a2, 8, end_col)
 	rl.DrawCircleSector(end, line_thickness/2.0/scale_hint, a2, a1, 8, end_col)
 }
-draw_circle :: proc(pos:Vec2, radius:f32, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
+
+draw_circle :: proc(pos:Vec2, radius:f32, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
 	scaled_radius := radius * scale_hint
 	if scaled_radius < line_thickness * 1.2 {
-		draw_dot(pos, col, scale_hint)
+		draw_dot(pos, scale_hint, col, brightness)
 	} else {
-		draw_polygon({0,0}, circle_polygon(pos, radius, segments(scaled_radius)), 0, col, scale_hint, brightness)
+		draw_polygon(circle_polygon(pos, radius, segments(scaled_radius)), scale_hint, col, brightness)
 	}
 }
 
+
+// --- Transforms ---
+
+Transform2D :: struct {
+	mat: matrix[2, 2]f32,
+	pos: Vec2,
+}
+
+transform_identity :: proc() -> Transform2D {
+	return {mat = matrix[2, 2]f32{1, 0, 0, 1}}
+}
+
+transform_trs :: proc(pos: Vec2, rot: f32, scale: Vec2) -> Transform2D {
+	m := calculate_rotation_matrix(rot)
+	return {mat = matrix[2, 2]f32{m[0,0]*scale.x, m[0,1]*scale.y, m[1,0]*scale.x, m[1,1]*scale.y}, pos = pos}
+}
+
+transform_point :: proc(t: Transform2D, p: Vec2) -> Vec2 {
+	return p * t.mat + t.pos
+}
+
+transformed_drawshape :: proc(s: Drawshape, t: Transform2D) -> Drawshape {
+	return {s.type, transform_point(t, s.start), transform_point(t, s.end)}
+}
+
+transformed_drawable :: proc(d: Drawable, t: Transform2D, allocator := context.temp_allocator) -> Drawable {
+	switch _ in d {
+	case Drawshape:
+		return transformed_drawshape(d.(Drawshape), t)
+	case DrawshapePro:
+		p := d.(DrawshapePro)
+		p.drawshape = transformed_drawshape(p.drawshape, t)
+		return p
+	case ^DrawshapeGroup:
+		g := d.(^DrawshapeGroup)
+		contents := make([dynamic]^Drawable, len(g.contents), allocator)
+		for item, i in g.contents {
+			ptr := new(Drawable, allocator)
+			ptr^ = transformed_drawable(item^, t, allocator)
+			contents[i] = ptr
+		}
+		result := new(DrawshapeGroup, allocator)
+		result^ = {g.name, contents}
+		return result
+	}
+	return d
+}
 
 // --- Compound Shapes ---
 
-draw_rect :: proc(pos:Vec2, size:Vec2, rot:f32, col:ThemeColor, scale_hint:f32) {
-	offset := size / 2
-	rot_mat := calculate_rotation_matrix(rot)
-	a := Vec2{-offset.x, -offset.y} * rot_mat + pos
-	b := Vec2{-offset.x, offset.y} * rot_mat + pos
-	c := Vec2{offset.x, offset.y} * rot_mat + pos
-	d := Vec2{offset.x, -offset.y} * rot_mat + pos
-	draw_line(a, b, col, scale_hint)
-	draw_line(b, c, col, scale_hint)
-	draw_line(c, d, col, scale_hint)
-	draw_line(d, a, col, scale_hint)
+rotate_polygon :: proc(poly: Polygon, rot: f32, pos: Vec2 = 0, allocator := context.temp_allocator) -> []Vec2 {
+	return copy_and_rotate_vertices(poly.vertices, pos, rot, allocator)
 }
 
-draw_polygon :: proc(pos: Vec2, vertices: []Vec2, rot: f32, col: ThemeColor, scale_hint: f32, brightness:f32 = 1.0) {
-	last_idx := len(vertices) - 1
+draw_polygon_transformed :: proc(verts: []Vec2, pos: Vec2, rot: f32, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) {
+	last_idx := len(verts) - 1
 	rot_mat := calculate_rotation_matrix(rot)
 	for i in 0 ..< last_idx {
-		a := vertices[i] * rot_mat + pos
-		b := vertices[i + 1] * rot_mat + pos
-		draw_line(a, b, col, scale_hint, brightness)
+		a := verts[i] * rot_mat + pos
+		b := verts[i + 1] * rot_mat + pos
+		draw_line(a, b, scale_hint, col, brightness)
 	}
-	a := vertices[last_idx] * rot_mat + pos
-	b := vertices[0] * rot_mat + pos
-	draw_line(a, b, col, scale_hint, brightness)
+	a := verts[last_idx] * rot_mat + pos
+	b := verts[0] * rot_mat + pos
+	draw_line(a, b, scale_hint, col, brightness)
 }
 
-draw_star :: proc(pos:Vec2, rot:f32, points:i32, radius:f32, sharpness:f32, col:ThemeColor, scale_hint:f32) {
-	draw_polygon({0,0}, star_polygon(pos, rot, points, radius, sharpness), 0, col, scale_hint)
+draw_rect :: proc(pos: Vec2, size: Vec2, rot: f32, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) {
+	h := size / 2
+	draw_polygon_transformed([]Vec2{
+		{-h.x, -h.y},
+		{-h.x,  h.y},
+		{ h.x,  h.y},
+		{ h.x, -h.y},
+	}, pos, rot, scale_hint, col, brightness)
 }
 
-draw_random_convex_polygon :: proc(pos:Vec2, rot:f32, points:i32, width_approx:f32, height_approx:f32, seed:u64, col:ThemeColor, scale_hint:f32) {
-	draw_polygon({0,0}, random_convex_polygon(pos, rot, points, width_approx, height_approx, seed), 0, col, scale_hint)
+draw_star :: proc(pos: Vec2, rot: f32, points: i32, radius: f32, sharpness: f32, scale_hint: f32, col: ThemeColor) {
+	draw_polygon(star_polygon(pos, rot, points, radius, sharpness), scale_hint, col)
 }
 
-draw_shape ::proc(s:Drawshape, col:ThemeColor, scale_hint:f32, brightness:f32 = 1.0) {
+draw_random_convex_polygon :: proc(pos: Vec2, rot: f32, points: i32, width_approx: f32, height_approx: f32, seed: u64, scale_hint: f32, col: ThemeColor) {
+	draw_polygon(random_convex_polygon(pos, rot, points, width_approx, height_approx, seed), scale_hint, col)
+}
+
+// --- Drawing ---
+
+draw_polygon :: proc(verts:[]Vec2, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32=1.0) {
+	n := len(verts)
+	for i in 0..<n {
+		draw_line(verts[i], verts[(i + 1) % n], scale_hint, col, brightness)
+	}
+}
+
+draw_shape_base :: proc(s: Drawshape, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32=1.0) {
 	switch s.type {
-	case shape_T.DOT:
-		draw_dot(s.end, col, scale_hint, brightness)
-	case shape_T.LINE:
-		draw_line(s.start, s.end, col, scale_hint, brightness)
-	case shape_T.CIRCLE:
-		draw_circle(s.start, rl.Vector2Distance(s.start, s.end), col, scale_hint, brightness)
+	case .DOT:
+		draw_dot(s.end, scale_hint, col, brightness)
+	case .LINE:
+		draw_line(s.start, s.end, scale_hint, col, brightness)
+	case .CIRCLE:
+		draw_circle(s.start, rl.Vector2Distance(s.start, s.end), scale_hint, col, brightness)
+	}
+}
+
+draw_shape_pro :: proc(s: DrawshapePro, scale_hint:f32=1.0) {
+	draw_shape_base(s.drawshape, scale_hint, s.col, s.brightness)
+}
+
+draw_shape_group :: proc(g: DrawshapeGroup, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness:f32 = 1.0) {
+	for item in g.contents {
+		draw_shape(item^, scale_hint, col, brightness)
+	}
+}
+
+draw_shape :: proc(s:Drawable, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness:f32=1.0) {
+	switch _ in s {
+	case Drawshape:
+		draw_shape_base(s.(Drawshape), scale_hint, col, brightness)
+	case DrawshapePro:
+		draw_shape_pro(s.(DrawshapePro), scale_hint)
+	case ^DrawshapeGroup:
+		draw_shape_group(s.(^DrawshapeGroup)^, scale_hint, col, brightness)
 	}
 }

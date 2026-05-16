@@ -2,8 +2,18 @@ package game
 
 import rl "vendor:raylib"
 
-current_tower_type := &laserTowerStats
+current_tower_type:TowerType
 current_pending_tower:Tower
+
+build_mode_tools := []UITool{
+	{title = "Laser", use = proc() { activate_build_mode(.LASER)}},
+	{title = "Cannon", use = proc() { activate_build_mode(.CANNON) }},
+}
+
+activate_build_mode :: proc(build_tower: TowerType) {
+	current_tower_type = build_tower
+	state.buildMode = true
+}
 
 update_build_mode :: proc(state: ^GameState) {
 	//NOTE: input processing should only be done in frame loop
@@ -11,10 +21,7 @@ update_build_mode :: proc(state: ^GameState) {
 	current_pending_tower.pos = point
 	current_pending_tower.rot = vec_angle(normal)
 
-	current_pending_tower.stats = current_tower_type
-	current_pending_tower.shape = current_tower_type.shape // is there a way to automate this?
-
-	current_pending_tower.pos += normal * entity_size(&current_pending_tower)/2
+	init_tower(&current_pending_tower, current_tower_type)
 }
 
 draw_build_mode :: proc(state: ^GameState) {
@@ -22,7 +29,7 @@ draw_build_mode :: proc(state: ^GameState) {
 	if check_collision_any(current_pending_tower, state.towers) {
 		current_pending_tower.col = .RED
 		can_build = false
-	} else if current_tower_type.cost > state.money {
+	} else if current_pending_tower.value > state.money {
 		current_pending_tower.col = .YELLOW
 		can_build = false
 	} else {
@@ -31,10 +38,12 @@ draw_build_mode :: proc(state: ^GameState) {
 
 	draw_entity(&current_pending_tower.entity, state)
 	if rl.IsMouseButtonPressed(.LEFT) && can_build {
-		state.money -= current_pending_tower.stats.cost
+		state.money -= current_pending_tower.value
 		current_pending_tower.col = .PRIMARY
 		attach_to_parent(&current_pending_tower, &state.comet)
 		spawn(&state.towers, current_pending_tower.pos, current_pending_tower)
 		current_pending_tower = {}
+		state.buildMode = false
+		selected_tool = nil //HACK
 	}
 }

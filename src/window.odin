@@ -1,15 +1,13 @@
 // Handles drawing itself. drawing the ui, and when and how to draw the other parts of the game
 package game
 
+import "base:builtin"
 import "core:c"
 import fmt "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
-Screen :: enum {
-	Title,
-	Game,
-}
+Screen :: enum{Title, Game, Draw}
 currentScreen := Screen.Game
 
 run := true
@@ -20,12 +18,12 @@ prev_window_size: Vec2
 
 GameState :: struct { //TODO: split some of this into new WorldState
 	player: Entity,
-	lookVec: Vec2,
 	meteors: [dynamic]Meteor,
 	towers: [dynamic]Tower,
 	projectiles: [dynamic]Entity,
 	vfx: [dynamic]Vfx,
 	comet: Entity,
+	highlighted_tower: ^Tower,
 
 	gameTime: f64,
 	timeRemaining: f32,
@@ -39,8 +37,18 @@ GameState :: struct { //TODO: split some of this into new WorldState
 }
 
 state: GameState = {
-	player = Entity{label = "jelly", pos = {200, -100}, shape = Rect{32}, alive = true},
-	comet = Entity{label = "comet", hp = 20.0, shape = Polygon{pentagon}},
+	player = Entity{
+		label = "jelly",
+		pos = {200, -100},
+		shape = Rect{32},
+		alive = true,
+//		draw = draw_player,
+	},
+	comet = Entity{
+		label = "comet",
+		hp = 20.0,
+		shape = Polygon{pentagon},
+	},
 	timeRemaining = 60,
 	money = 20,
 	difficulty_scale = 1,
@@ -91,7 +99,8 @@ init :: proc() {
 
 	rl.InitAudioDevice()
 	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
-	rockDestroyedSound = rl.LoadSound("assets/sfx/hit0.wav")
+	hitSound = rl.LoadSound("assets/sfx/hit0.wav")
+	asteroidHitSound = rl.LoadSound("assets/sfx/asteroid_hit.wav")
 	init_meteor_polygons()
 	init_shader()
 }
@@ -136,6 +145,20 @@ update :: proc() {
 	case .Title:
 		draw_title_screen()
 	case .Game:
+		// build mode
+		if i:= select_tool(build_mode_tools); i>=0 {
+			// why did I make this so confusing?
+			if &build_mode_tools[i] == selected_tool{
+				selected_tool = nil
+				state.buildMode = false
+			} else {
+				selected_tool = &build_mode_tools[i]
+				if selected_tool.use != nil do selected_tool.use()
+			}
+		}
+		draw_tools(build_mode_tools, {10, 50}, .TOP_LEFT, .BOTTOM)
+
+		// pause
 		if rl.IsKeyPressed(.ESCAPE) {
 			paused = !paused
 			fmt.printf("paused")
@@ -148,6 +171,7 @@ update :: proc() {
 				state.gameOver = true
 			}
 		}
+
 		rl.BeginMode2D(camera)
 		draw_game_screen(&state)
 		rl.EndMode2D()
@@ -170,7 +194,15 @@ update :: proc() {
 				rl.WHITE,
 			)
 		}
+	case .Draw:
+		rl.BeginMode2D(camera)
+		canvas_loop(delta)
+		rl.EndMode2D()
 
+		if i:= select_tool(canvas_tools[:]); i>=0 {
+			selected_tool = &canvas_tools[i]
+		}
+		draw_tools(canvas_tools[:], {10, 10}, .TOP_LEFT, .RIGHT)
 	}
 	rl.EndTextureMode()
 	//rl.EndBlendMode()
