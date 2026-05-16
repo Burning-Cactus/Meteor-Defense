@@ -6,15 +6,12 @@ import "core:math"
 current_tower_type:TowerType
 current_pending_tower:Tower
 
-set_build_mode :: proc(enabled:bool, build_tower:TowerType) {
-}
-
 selectable_towers:[]TowerType = {.LASER, .CANNON}
 selected_tower_idx:=-1
 draw_tower_toolbar ::proc() {
 	result := draw_toolbar({10, 50}, .TOP_LEFT, .BOTTOM, len(selectable_towers), draw_tower_selector)
 	if result != -1 {
-		if result != selected_tower_idx {
+		if result != selected_tower_idx || !state.buildMode {
 			selected_tower_idx = result
 			current_tower_type = selectable_towers[result]
 			state.buildMode = true
@@ -40,13 +37,13 @@ draw_tower_selector :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hi
 	center, size := box_geo(start, end)
 	icon := Tower{rot=-math.PI/2, pos={center.x, end.y}}
 	init_tower(&icon, type)
-	icon.target = cursor
 	switch type {
 	case .CANNON:
 		icon.scale = 0.35
 	case .LASER:
 		icon.scale = 0.4
 	}
+	icon.barrel_angle = -math.PI / 6
 	null_state:=GameState{scale_hint=1.0}
 	draw_entity(&icon, &null_state)
 
