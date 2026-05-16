@@ -63,6 +63,25 @@ update_build_mode :: proc(state: ^GameState) {
 	init_tower(&current_pending_tower, current_tower_type)
 }
 
+draw_aim_arc :: proc(tower: ^Tower, col: ThemeColor, scale_hint: f32) {
+	tower_pos   := entity_world_pos(tower^)
+	base_angle  := entity_world_rot(tower^)
+	a0 := base_angle - tower.aim_arc
+	a1 := base_angle + tower.aim_arc
+
+	draw_line(tower_pos, tower_pos + unit_vector(a0) * tower.range, scale_hint, col, 0.3)
+	draw_line(tower_pos, tower_pos + unit_vector(a1) * tower.range, scale_hint, col, 0.3)
+
+	n :: 24
+	prev := tower_pos + unit_vector(a0) * tower.range
+	for i in 1..=n {
+		a    := a0 + f32(i) * (a1 - a0) / f32(n)
+		curr := tower_pos + unit_vector(a) * tower.range
+		draw_line(prev, curr, scale_hint, col, 0.3)
+		prev = curr
+	}
+}
+
 draw_build_mode :: proc(state: ^GameState) {
 	can_build := true
 	if check_collision_any(current_pending_tower, state.towers) {
@@ -75,6 +94,7 @@ draw_build_mode :: proc(state: ^GameState) {
 		current_pending_tower.col = .CYAN
 	}
 
+	draw_aim_arc(&current_pending_tower, current_pending_tower.col, state.scale_hint)
 	draw_entity(&current_pending_tower.entity, state)
 	if rl.IsMouseButtonPressed(.LEFT) && try_claim_click() {
 		if can_build {

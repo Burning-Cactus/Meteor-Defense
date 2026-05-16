@@ -3,6 +3,7 @@
 package game
 import rl "vendor:raylib"
 import "core:math"
+import "core:fmt"
 
 Rect :: struct {
 	size: Vec2,
@@ -78,7 +79,7 @@ remove_dead :: proc(list: ^[dynamic]$T, state: ^GameState) {
 	}
 }
 
-entity_bounds :: proc(e: ^Entity) -> Vec2 {
+entity_bounds :: proc(e: Entity) -> Vec2 {
 	switch shape in e.shape {
 	case Rect:
 		return shape.size
@@ -91,7 +92,7 @@ entity_bounds :: proc(e: ^Entity) -> Vec2 {
 	return {0, 0}
 }
 
-entity_size :: proc(e: ^Entity) -> f32 {
+entity_size :: proc(e: Entity) -> f32 {
 	switch shape in e.shape {
 	case Rect:
 		r := shape.size
@@ -344,6 +345,17 @@ draw_enity_shape :: proc(s: Shape, pos: Vec2, rot: f32, scale_hint: f32 = 1.0, c
 		draw_circle(pos, shape.radius, scale_hint, col, brightness)
 	case Polygon:
 		draw_polygon_transformed(shape.vertices, pos, rot, scale_hint, col, brightness)
+	}
+}
+
+draw_entity_debug_lines :: proc(e: Entity, values: ..any) {
+	x,y := vec_ints(local_to_world(e, entity_bounds(e)))
+	line_height :: 18
+	font_size   :: 18
+	rl.DrawText("debug info:", x, y - line_height, font_size, modulate(.DEBUG))
+	for val, i in values {
+		text := fmt.ctprintf("%f", val)
+		rl.DrawText(text, x, y + i32(i) * line_height, font_size, modulate(.DEBUG))
 	}
 }
 

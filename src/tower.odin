@@ -20,8 +20,11 @@ Tower :: struct {
 	aim_tolerance: f32,
 
 	barrel_angle:        f32,
-	has_target:          bool,
-	target_id:           u64,
+	target: Vec2,
+	has_target: bool,
+	target_closeness_bias, target_ahead_bias: f32,
+
+	debug_info:f32,
 }
 
 TowerPreset :: struct {
@@ -33,9 +36,11 @@ TowerPreset :: struct {
 
 	turn_speed:    f32,
 	range:         f32,
-	aim_arc:       f32,
+	aim_arc:       i32,
 	attentiveness: f32,
 	aim_tolerance: f32,
+
+	target_closeness_bias, target_ahead_bias: f32,
 }
 
 tower_presets := [TowerType]TowerPreset{
@@ -47,8 +52,8 @@ tower_presets := [TowerType]TowerPreset{
 		cooldown      = 0.2,
 		turn_speed    = 1.8,
 		range         = 800,
-		aim_arc       = math.PI * 0.65,
-		attentiveness = 0.1,
+		aim_arc       = 80,
+		attentiveness = 1,
 		aim_tolerance = 0.08,
 	},
 	.LASER = {
@@ -57,11 +62,10 @@ tower_presets := [TowerType]TowerPreset{
 		height        = 60,
 		barrel_length = 30,
 		cooldown      = 2.0,
-		turn_speed    = 12.0,
-		range         = 500,
-		aim_arc       = math.PI * 0.55,
-		attentiveness = 0.6,
-		aim_tolerance = 0.2,
+		turn_speed    = 5,
+		range         = 1800,
+		aim_arc       = 60,
+		attentiveness = 6,
 	},
 }
 
@@ -76,13 +80,17 @@ init_tower :: proc(tower: ^Tower, type: TowerType) {
 	tower.scale         = 1.0
 	tower.turn_speed    = preset.turn_speed
 	tower.range         = preset.range
-	tower.aim_arc       = preset.aim_arc
+	tower.aim_arc       = math.to_radians(f32(preset.aim_arc))
 	tower.attentiveness = preset.attentiveness
-	tower.aim_tolerance = preset.aim_tolerance
+	tower.aim_tolerance = max(preset.aim_tolerance, 0.001)
+	tower.target_closeness_bias = 1.0 //preset.target_closeness_bias
+	tower.target_ahead_bias = 1.0 //preset.target_ahead_bias
+
+	assert(tower.target_ahead_bias + tower.target_closeness_bias > 0)
 }
 
 check_tower_near_cursor :: proc(t: Tower, state: ^GameState) -> bool {
-	return check_collision(t, Entity{pos = state.cursor, shape = Circle{32}})
+	return check_collision(t, cursor_entity())
 }
 
 angle_diff :: proc(a, b: f32) -> f32 {
@@ -92,31 +100,41 @@ angle_diff :: proc(a, b: f32) -> f32 {
 	return diff
 }
 
-find_target_for_tower :: proc(tower: ^Tower, state: ^GameState) -> (id: u64, ok: bool) {
-	range_sq     := tower.range * tower.range
-	best_dist_sq : f32 = math.F32_MAX
-	tower_pos    := entity_world_pos(tower^)
-	for i in 0..<len(state.meteors) {
-		meteor := &state.meteors[i]
-		if !meteor.alive do continue
-		d_sq := dist_squared(entity_world_pos(meteor.entity), tower_pos)
-		if d_sq <= range_sq && d_sq < best_dist_sq {
-			best_dist_sq = d_sq
-			id = meteor.id
-			ok = true
+target_score :: proc(tower: ^Tower, target: Entity) -> f32 {
+	if !target.alive do return 0
+	range_sq := tower.range * tower.range
+	m_local:= world_to_local(tower, target.pos)
+
+	angle:=vec_angle(m_local) // 0 means straight up
+	if abs(angle) > tower.aim_arc do return 0
+	angle_from_barrel :f32 = angle - tower.barrel_angle + entity_world_rot(tower)
+
+
+	d_sq := dist_squared(m_local)
+	if d_sq > range_sq do return 0
+
+	assert(range_sq > 0.0)
+	d_sq_ratio := 1.0 - d_sq / range_sq
+	assert(d_sq_ratio >= 0 && d_sq_ratio <= 1.0)
+	angle_sq_ratio := 1.0 - sqr(angle_from_barrel) / sqr(tower.aim_arc) // we sqaure this as well just for fairness
+	angle_sq_ratio = math.clamp(angle_sq_ratio, 0, 1)
+
+	return d_sq_ratio * tower.target_closeness_bias + angle_sq_ratio * tower.target_ahead_bias
+}
+
+aim_debug :: false
+find_target_for_tower :: proc(tower: ^Tower, state: ^GameState) -> (target_pos:Vec2, best_score:f32) {
+	if aim_debug {
+		return state.cursor, target_score(tower, cursor_entity())
+	}
+	for target in state.meteors {
+		score := target_score(tower, target)
+		if score > best_score {
+			target_pos = entity_world_pos(target)
+			best_score = score
 		}
 	}
 	return
-}
-
-get_target_pos :: proc(target_id: u64, state: ^GameState) -> (pos: Vec2, ok: bool) {
-	for i in 0..<len(state.meteors) {
-		meteor := &state.meteors[i]
-		if meteor.id == target_id && meteor.alive {
-			return entity_world_pos(meteor.entity), true
-		}
-	}
-	return {}, false
 }
 
 update_towers :: proc(state: ^GameState, delta: f32) {
@@ -132,18 +150,12 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 			state.highlighted_tower = tower
 		}
 
+		//targetting logic
 		if rand.float32() < tower.attentiveness * delta {
-			id, ok := find_target_for_tower(tower, state)
-			tower.target_id  = id
-			tower.has_target = ok
-		}
-
-		// Clear target if it's no longer alive
-		target_pos: Vec2
-		if tower.has_target {
-			alive: bool
-			target_pos, alive = get_target_pos(tower.target_id, state)
-			if !alive do tower.has_target = false
+			found_target, found_target_score := find_target_for_tower(tower, state)
+			tower.has_target = found_target_score > 0
+			tower.target = found_target
+			tower.debug_info = found_target_score
 		}
 
 		base_angle := entity_world_rot(tower^)
@@ -151,7 +163,7 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 		// Turn barrel toward target, clamped to aim_arc from base direction
 		if tower.has_target {
 			tower_pos     := entity_world_pos(tower^)
-			desired_angle := angle_facing(tower_pos, target_pos)
+			desired_angle := angle_facing(tower_pos, tower.target)
 
 			// Clamp the desired angle to within aim_arc of the base bone
 			diff_to_base    := angle_diff(desired_angle, base_angle)
@@ -176,10 +188,10 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 		tower.attack_timer += delta
 		if tower.has_target && tower.attack_timer > tower.cooldown {
 			tower_pos     := entity_world_pos(tower^)
-			desired_angle := angle_facing(tower_pos, target_pos)
+			desired_angle := angle_facing(tower_pos, tower.target)
 			if abs(angle_diff(tower.barrel_angle, desired_angle)) < tower.aim_tolerance {
 				shoot(tower, state)
-				tower.attack_timer -= tower.cooldown
+				tower.attack_timer = 0
 			}
 		}
 	}
@@ -204,6 +216,7 @@ draw_tower :: proc(t: ^Tower, state: ^GameState) {
 	rot        := entity_world_rot(t)
 	base   := Bone{global_pos, global_pos + unit_vector(rot) * tower_presets[t.type].height * t.scale}
 	barrel := Bone{base.tip, base.tip + unit_vector(t.barrel_angle) * tower_presets[t.type].barrel_length * t.scale}
+	//draw_entity_debug_lines(t, t.debug_info)
 
 	switch t.type {
 	case .LASER:
@@ -231,5 +244,5 @@ draw_tower :: proc(t: ^Tower, state: ^GameState) {
 			{.LINE, {-.1,.5}, {-.1,1}},
 		}, state.scale_hint, t.col, brightness)
 	}
-	t.bullet_origin = barrel.tip // frame-late; acknowledged as acceptable
+	t.bullet_origin = barrel.tip // NOTE: this will be a frame behind, but it shouldn't matter
 }

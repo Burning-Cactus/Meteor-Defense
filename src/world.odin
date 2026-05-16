@@ -12,6 +12,14 @@ spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
 	play_sfx("shoot")
 }
 
+cursor_entity ::proc() -> Entity {
+	return Entity{
+		pos=state.cursor,
+		alive = true,
+		shape = Circle{32},
+	}
+}
+
 // I'm thinking particles can be handled later with an arena.
 game_loop :: proc(delta: f32) {
 	if state.buildMode {
@@ -52,7 +60,7 @@ game_loop :: proc(delta: f32) {
 	remove_dead(&state.projectiles, &state)
 	remove_dead(&state.vfx, &state)
 
-	state.difficulty_scale += 0.1 * delta
+	state.difficulty_scale += 0.05 * delta
 }
 
 handle_input :: proc() {
