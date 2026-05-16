@@ -46,6 +46,10 @@ normalize :: proc(vector: Vec2) -> Vec2 {
 	return vector / distance
 }
 
+vec_ints :: proc(v:Vec2) -> (x:i32, y:i32) {
+	return i32(v.x), i32(v.y)
+}
+
 dot_product :: proc(a: Vec2, b: Vec2) -> f32 {
 	return a.x * b.x + a.y * b.y
 }

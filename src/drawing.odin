@@ -48,10 +48,15 @@ theme := [ThemeColor][3]u8 {
 
 // --- Drawing Utilities ---
 
-modulate :: proc(rgb: [3]u8, brightness:f32) -> rl.Color {
+modulate_themecolor :: proc(col: ThemeColor, brightness:f32=1.0) -> rl.Color {
+	return modulate_rgb(theme[col], brightness)
+}
+modulate_rgb :: proc(rgb: [3]u8, brightness:f32) -> rl.Color {
 	alpha := cast(u8) (cast(f32)draw_opacity * brightness)
 	return {rgb.r, rgb.g, rgb.b, alpha}
 }
+modulate :: proc{modulate_themecolor, modulate_rgb}
+
 segments :: proc(radius:f32) -> i32{
 	return  max(4, i32(math.ceil(math.TAU * math.sqrt(radius) * line_resolution)))
 }
@@ -199,6 +204,15 @@ draw_rect :: proc(pos: Vec2, size: Vec2, rot: f32, scale_hint: f32 = 1.0, col: T
 		{ h.x,  h.y},
 		{ h.x, -h.y},
 	}, pos, rot, scale_hint, col, brightness)
+}
+
+draw_box ::proc(start:Vec2, end:Vec2,  scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) {
+	draw_polygon([]Vec2{
+		start,
+		{end.x, start.y},
+		end,
+		{start.x, end.y},
+	}, scale_hint, col, brightness)
 }
 
 draw_star :: proc(pos: Vec2, rot: f32, points: i32, radius: f32, sharpness: f32, scale_hint: f32, col: ThemeColor) {

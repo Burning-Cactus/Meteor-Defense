@@ -160,6 +160,7 @@ curr_shape: Drawshape
 root:            DrawshapeGroup = {name = "root"}
 selected_shapes: [dynamic]ShapeRef
 
+/*
 dot_icon    := Drawshape{.DOT, {}, {}}
 line_icon   := Drawshape{.LINE, {-.4,-.4}, {.4,.4}}
 circle_icon := Drawshape{.CIRCLE, {}, {.4,0}}
@@ -169,6 +170,7 @@ canvas_tools := [3]UITool{
 	{title = "Line",   icon = line_icon,   use = proc() { draw_mode = .LINE }},
 	{title = "Circle", icon = circle_icon, use = proc() { draw_mode = .CIRCLE }},
 }
+*/
 
 canvas_loop :: proc(delta: f32) {
 	select_threshold := 20.0 / state.scale_hint
@@ -201,6 +203,7 @@ canvas_loop :: proc(delta: f32) {
 	draw_shape_group(root, state.scale_hint)
 	if highlighted_found do handle_highlighted_shape(highlighted_ref, highlighted_handle)
 
+	/*
 	if drag_started(&draw_drag) && selected_tool.use != nil {
 		selected_tool.use()
 		draw_drag.start = state.cursor
@@ -215,4 +218,5 @@ canvas_loop :: proc(delta: f32) {
 		ptr^ = curr_shape
 		append(&root.contents, ptr)
 	}
+	*/
 }

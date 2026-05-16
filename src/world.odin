@@ -64,7 +64,7 @@ handle_input :: proc() {
 	if rl.IsKeyDown(.D) do player.velocity.x += playerSpeed
 	if rl.IsKeyDown(.W) do player.velocity.y -= playerSpeed
 	if rl.IsKeyDown(.S) do player.velocity.y += playerSpeed
-	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) {
+	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) && try_claim_click() {
 		bulletSpeed :: 500
 		bullet_normal := unit_vector(player.rot)
 		spawn_bullet(&state, player.pos + bullet_normal * 30, bullet_normal * bulletSpeed)

@@ -1,7 +1,6 @@
 package game
 
 import rl "vendor:raylib"
-import "core:strings"
 
 Drag :: struct{
 	button:union {rl.KeyboardKey, rl.MouseButton},
@@ -43,20 +42,6 @@ DrawDirection :: enum {
 	BOTTOM_LEFT, BOTTOM, BOTTOM_RIGHT,
 }
 
-UITool :: struct {
-	title: string,
-	icon:  Drawable,
-	use:   proc(),
-}
-
-select_tool :: proc(tools: []UITool) -> int {
-	keys := [9]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE}
-	for i in 0..<min(len(tools), 9) {
-		if rl.IsKeyPressed(keys[i]) do return i
-	}
-	return -1
-}
-
 tool_slot_size :: f32(48)
 
 direction_offset :: proc(d: DrawDirection) -> Vec2 {
@@ -74,36 +59,65 @@ direction_offset :: proc(d: DrawDirection) -> Vec2 {
 	return table[d]
 }
 
-selected_tool:^UITool
-draw_tools :: proc(tools: []UITool, start: Vec2, icon_direction: DrawDirection, list_direction: DrawDirection) {
+// Whether something has been clicked this frame
+// Used to prevent clicking on multiple things at once
+// Has to be reset every frame
+click_claimed:bool
+
+// NOTE: always check this last, don't claim the click without using it
+try_claim_click ::proc() -> bool {
+	// TODO maybe handle Pressed() while we're at it
+	defer click_claimed = true
+	return !click_claimed
+}
+
+is_box_hovered :: proc(start:Vec2, end:Vec2, cursor:Vec2) -> bool {
+	lo := Vec2{min(start.x, end.x), min(start.y, end.y)}
+	hi := Vec2{max(start.x, end.x), max(start.y, end.y)}
+	return cursor.x > lo.x && cursor.y > lo.y && cursor.x < hi.x && cursor.y < hi.y
+}
+
+is_box_clicked :: proc(start:Vec2, end:Vec2, cursor:Vec2) -> bool {
+	return is_box_hovered(start, end, cursor) && rl.IsMouseButtonPressed(.LEFT) && try_claim_click()
+}
+get_number_pressed ::proc() -> int {
+	for key, i in ([]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE, .ZERO}) {
+		if rl.IsKeyPressed(key) do return i
+	}
+	return -1
+}
+box_geo ::proc(start:Vec2, end:Vec2) -> (center:Vec2, size:Vec2) {
+	center = (start + end) / 2
+	size = end - start // this is signed and idk if that's a good thing
+	return
+}
+
+// use as is or as an example
+draw_tool_basic :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f32=1.0) -> bool {
+	brightness:f32= 1.0
+	if is_box_hovered(start, end, cursor) {
+		brightness = 1.8
+	}
+	draw_box(start, end, scale_hint, .PRIMARY, brightness)
+	_, size: = box_geo(start, end)
+	x, y := vec_ints(start + size/10)
+	rl.DrawText(rl.TextFormat("%i", idx+1), x, y, 10, modulate(.PRIMARY))
+	return is_box_clicked(start, end, cursor) || get_number_pressed() == idx
+}
+
+draw_toolbar :: proc(
+		start: Vec2, anchor: DrawDirection, list_direction: DrawDirection, count:int,
+		draw_tool:proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f32=1.0) -> bool=draw_tool_basic) -> int{
 	slot := tool_slot_size
 	step := direction_offset(list_direction) * (slot + 18.0)
-	offset := direction_offset(icon_direction) * tool_slot_size * -.5
-
-	for &tool, i in tools {
-		slot_corner := start + step * f32(i)
-		slot_centre := slot_corner + offset
-
-		selected := &tool == selected_tool
-
-		color:ThemeColor= .PRIMARY
-		brightness:f32  = 1.8 if selected else 0.4
-
-		rgb := theme[color]
-		col := rl.Color{rgb.r, rgb.g, rgb.b, 255}
-
-		draw_rect(slot_centre, {slot, slot}, 0, 1.0, color, brightness)
-
-		rl.DrawText(rl.TextFormat("%i", i32(i + 1)), i32(slot_corner.x + 2), i32(slot_corner.y + 2), 10, col)
-
-		if tool.icon != nil {
-			t := transform_trs(slot_centre, 0, {slot, slot})
-			draw_shape(transformed_drawable(tool.icon, t), 1.0, color, brightness)
-		}
-		if len(tool.title) > 0 {
-			title := strings.clone_to_cstring(tool.title, context.temp_allocator)
-			rl.DrawText(title, i32(slot_corner.x), i32(slot_corner.y + slot + 2), 8, col)
-		}
+	offset := direction_offset(anchor) * -tool_slot_size
+	// TODO complete direction handling isn't done
+	selected_tool := -1
+	for i in 0..<count {
+		slot_start := start + step * f32(i)
+		slot_end := slot_start + offset
+		if draw_tool(slot_start, slot_end, i, rl.GetMousePosition()) do selected_tool = i
 	}
+	return selected_tool // the "correct" way to do this is with `return selected_tool, ok`
 }
 

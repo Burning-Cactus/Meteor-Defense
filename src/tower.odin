@@ -11,6 +11,7 @@ Tower :: struct {
 	cooldown: f32,
 	target: Vec2,
 	bullet_origin: Vec2,
+	scale: f32,
 }
 TowerPreset :: struct {
 	cost:u32,
@@ -45,6 +46,7 @@ init_tower :: proc(tower: ^Tower, type: TowerType) {
 	tower.cooldown = preset.cooldown
 	tower.value = preset.cost
 	tower.draw =  draw_tower
+	tower.scale = 1.0
 }
 
 check_tower_near_cursor ::proc(t:Tower, state: ^GameState) -> bool{
@@ -92,8 +94,8 @@ draw_tower ::proc(t: ^Tower, state: ^GameState) {
 	}
 	global_pos := local_to_world(t, {})
 	rot := entity_world_rot(t)
-	base := Bone{ global_pos, global_pos + unit_vector(rot) * tower_presets[t.type].height }
-	barrel := Bone{ base.tip, base.tip + normalize(t.target - base.tip) * tower_presets[t.type].barrel_length}
+	base := Bone{ global_pos, global_pos + unit_vector(rot) * tower_presets[t.type].height * t.scale }
+	barrel := Bone{ base.tip, base.tip + normalize(t.target - base.tip) * tower_presets[t.type].barrel_length * t.scale}
 
 	switch t.type {
 	case .LASER:

@@ -102,6 +102,7 @@ init :: proc() {
 }
 
 update :: proc() {
+	click_claimed = false
 	delta := rl.GetFrameTime()
 	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
 
@@ -141,20 +142,7 @@ update :: proc() {
 	case .Title:
 		draw_title_screen()
 	case .Game:
-		// build mode
-		if i:= select_tool(build_mode_tools); i>=0 {
-			// why did I make this so confusing?
-			if &build_mode_tools[i] == selected_tool{
-				selected_tool = nil
-				state.buildMode = false
-				play_sfx("ui_back")
-			} else {
-				selected_tool = &build_mode_tools[i]
-				if selected_tool.use != nil do selected_tool.use()
-				play_sfx("ui_click")
-			}
-		}
-		draw_tools(build_mode_tools, {10, 50}, .TOP_LEFT, .BOTTOM)
+		draw_tower_toolbar()
 
 		// pause
 		if rl.IsKeyPressed(.ESCAPE) {
@@ -196,10 +184,11 @@ update :: proc() {
 		canvas_loop(delta)
 		rl.EndMode2D()
 
-		if i:= select_tool(canvas_tools[:]); i>=0 {
+		/*if i:= select_tool(canvas_tools[:]); i>=0 {
 			selected_tool = &canvas_tools[i]
 		}
 		draw_tools(canvas_tools[:], {10, 10}, .TOP_LEFT, .RIGHT)
+		*/
 	}
 	rl.EndTextureMode()
 	//rl.EndBlendMode()
