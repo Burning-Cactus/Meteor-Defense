@@ -37,13 +37,15 @@ draw_build_mode :: proc(state: ^GameState) {
 	}
 
 	draw_entity(&current_pending_tower.entity, state)
-	if rl.IsMouseButtonPressed(.LEFT) && can_build {
-		state.money -= current_pending_tower.value
-		current_pending_tower.col = .PRIMARY
-		attach_to_parent(&current_pending_tower, &state.comet)
-		spawn(&state.towers, current_pending_tower.pos, current_pending_tower)
-		current_pending_tower = {}
-		state.buildMode = false
-		selected_tool = nil //HACK
+	if rl.IsMouseButtonPressed(.LEFT) {
+		if can_build {
+			state.money -= current_pending_tower.value
+			current_pending_tower.col = .PRIMARY
+			attach_to_parent(&current_pending_tower, &state.comet)
+			spawn(&state.towers, current_pending_tower.pos, current_pending_tower)
+			current_pending_tower = {}
+			state.buildMode = false
+			selected_tool = nil //HACK
+		} else do play_sfx("ui_error")
 	}
 }

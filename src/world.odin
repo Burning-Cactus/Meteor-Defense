@@ -3,17 +3,13 @@ package game
 
 import rl "vendor:raylib"
 
-laserSound: rl.Sound
-hitSound: rl.Sound
-asteroidHitSound: rl.Sound
-
 spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
 	spawn(&state.projectiles, pos, Entity{
 		velocity = velocity,
 		shape = Circle{12},
 		col = .PRIMARY,
 	})
-	rl.PlaySound(laserSound)
+	play_sfx("shoot")
 }
 
 // I'm thinking particles can be handled later with an arena.

@@ -1,9 +1,7 @@
 // Handles drawing itself. drawing the ui, and when and how to draw the other parts of the game
 package game
 
-import "base:builtin"
 import "core:c"
-import fmt "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
@@ -98,9 +96,7 @@ init :: proc() {
 	pan_to_new_window_size()
 
 	rl.InitAudioDevice()
-	laserSound = rl.LoadSound("assets/sfx/shoot0.wav")
-	hitSound = rl.LoadSound("assets/sfx/hit0.wav")
-	asteroidHitSound = rl.LoadSound("assets/sfx/asteroid_hit.wav")
+	init_sfx()
 	init_meteor_polygons()
 	init_shader()
 }
@@ -151,9 +147,11 @@ update :: proc() {
 			if &build_mode_tools[i] == selected_tool{
 				selected_tool = nil
 				state.buildMode = false
+				play_sfx("ui_back")
 			} else {
 				selected_tool = &build_mode_tools[i]
 				if selected_tool.use != nil do selected_tool.use()
+				play_sfx("ui_click")
 			}
 		}
 		draw_tools(build_mode_tools, {10, 50}, .TOP_LEFT, .BOTTOM)
@@ -161,7 +159,6 @@ update :: proc() {
 		// pause
 		if rl.IsKeyPressed(.ESCAPE) {
 			paused = !paused
-			fmt.printf("paused")
 		}
 		if !paused && !state.gameOver {
 			game_loop(delta)
@@ -235,6 +232,7 @@ should_run :: proc() -> bool {
 }
 
 shutdown :: proc() {
+	shutdown_sfx()
 	shutdown_shader()
 	rl.CloseWindow()
 }

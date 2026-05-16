@@ -2,7 +2,6 @@ package game
 
 import "core:math"
 import "core:math/rand"
-import rl "vendor:raylib"
 
 MeteorType :: enum {SHOOTING_STAR, METEOROID, ASTEROID}
 
@@ -28,7 +27,7 @@ Meteor :: struct {
 MeteorPreset :: struct {
 	speed, spin, size, health, power:f32,
 	reward:u32,
-	death_sfx: ^rl.Sound,
+	death_sfx: string,
 }
 meteor_presets := [MeteorType]MeteorPreset{
 	.SHOOTING_STAR = {
@@ -54,7 +53,7 @@ meteor_presets := [MeteorType]MeteorPreset{
 		health = 12.0,
 		power = 5.0,
 		reward = 10,
-		death_sfx = &asteroidHitSound,
+		death_sfx = "asteroid_hit",
 	},
 }
 
@@ -69,10 +68,10 @@ draw_meteor :: proc(m: ^Meteor, state: ^GameState) {
 }
 
 meteor_on_death :: proc(m: ^Meteor, state: ^GameState) {
-	if sfx:=meteor_presets[m.type].death_sfx; sfx != nil {
-		rl.PlaySound(sfx^)
+	if sfx := meteor_presets[m.type].death_sfx; sfx != "" {
+		play_sfx(sfx)
 	}
-	rl.PlaySound(hitSound)
+	play_sfx("hit")
 	//spawn_sparks(state, m.pos, 10, 220, 0.7)
 	if m.type > .SHOOTING_STAR {
 		spawn_exploded(state, copy_and_rotate_vertices(m.polygon, m.pos, m.rot), m.col, m.velocity/2.0)
