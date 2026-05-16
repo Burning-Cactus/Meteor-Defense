@@ -63,7 +63,7 @@ tower_presets := [TowerType]TowerPreset{
 		aim_arc       = 80,
 		aim_tolerance = 0.08,
 
-		attentiveness = 1,
+		attentiveness = 6,
 		target_closeness_bias = 1.0,
 		target_ahead_bias = 1.0,
 	},
@@ -77,7 +77,7 @@ tower_presets := [TowerType]TowerPreset{
 		turn_speed    = 5,
 		range         = 1800,
 		aim_arc       = 60,
-		attentiveness = 0.1,
+		attentiveness = 1,
 		target_closeness_bias = 0.2,
 		target_ahead_bias = 1.0,
 	},
