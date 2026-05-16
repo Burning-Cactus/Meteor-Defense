@@ -179,9 +179,9 @@ update :: proc() {
 				70,
 				20,
 				rl.WHITE,
-			)
-		}
+			)		}
 	case .Draw:
+		draw_canvas_toolbar()
 		rl.BeginMode2D(camera)
 		canvas_loop(delta)
 		rl.EndMode2D()

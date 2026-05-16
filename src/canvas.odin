@@ -155,11 +155,57 @@ move_drawable :: proc(d: ^Drawable, delta: Vec2, move_whole: bool, handle: Handl
 
 draw_drag:  Drag = {button = rl.MouseButton.LEFT}
 shape_drag: Drag = {button = rl.MouseButton.RIGHT}
-draw_mode:  Drawshape_Type
-curr_shape: Drawshape
 root:            DrawshapeGroup = {name = "root"}
 selected_shapes: [dynamic]ShapeRef
 
+CanvasTool :: struct {
+	name:cstring,
+	drag_handler:proc(d:Drag) -> Drawable,
+}
+shape_tool_drag_handler ::proc(d:Drag, shape:Drawshape_Type) -> Drawable {
+	return Drawshape{shape, d.start, d.end}
+}
+canvas_tools:[]CanvasTool = {
+	{"Dot", proc(d:Drag) -> Drawable {
+		return shape_tool_drag_handler(d, .DOT)
+	}},
+	{"Line", proc(d:Drag) -> Drawable {
+		return shape_tool_drag_handler(d, .LINE)
+	}},
+	{"Circle", proc(d:Drag) -> Drawable {
+		return shape_tool_drag_handler(d, .CIRCLE)
+	}},
+
+}
+
+
+draw_canvas_tool :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f32=1.0) -> bool {
+	brightness:f32= .5
+	if is_box_hovered(start, end, cursor) {
+		brightness = 1.0
+	}
+	if selected_tool_idx == idx {
+		brightness = 2.0
+	}
+
+	_, size := box_geo(start, end)
+
+	draw_box(start, end, scale_hint, .PRIMARY, brightness)
+
+	x,y := vec_ints(start+ size/10)
+	rl.DrawText(rl.TextFormat("%i", idx+1), x, y, 10, modulate(.PRIMARY))
+	x,y = vec_ints({start.x+ size.x*0.1, start.y+ size.y*0.8})
+	rl.DrawText(canvas_tools[idx].name, x, y, 10, modulate(.PRIMARY))
+
+	return is_box_clicked(start, end, cursor) || get_number_pressed() == idx
+}
+
+selected_tool_idx:int
+draw_canvas_toolbar ::proc() {
+	if i := draw_toolbar({10, 50}, .TOP_LEFT, .BOTTOM, len(canvas_tools), draw_canvas_tool); i != -1{
+		selected_tool_idx = i
+	}
+}
 
 canvas_loop :: proc(delta: f32) {
 	select_threshold := 20.0 / state.scale_hint
@@ -192,20 +238,18 @@ canvas_loop :: proc(delta: f32) {
 	draw_shape_group(root, state.scale_hint)
 	if highlighted_found do handle_highlighted_shape(highlighted_ref, highlighted_handle)
 
-	/*
-	if drag_started(&draw_drag) && selected_tool.use != nil {
-		selected_tool.use()
+	// use tool
+	drag_handler := canvas_tools[selected_tool_idx].drag_handler
+	if drag_started(&draw_drag){
 		draw_drag.start = state.cursor
-		curr_shape = {draw_mode, draw_drag.start, draw_drag.start}
 	}
 	if draw_drag.active {
-		curr_shape.end = state.cursor
-		draw_shape(curr_shape, state.scale_hint)
+		draw_drag.end = state.cursor
+		draw_shape(drag_handler(draw_drag))
 	}
 	if drag_ended(&draw_drag) {
 		ptr := new(Drawable)
-		ptr^ = curr_shape
+		ptr^ = drag_handler(draw_drag)
 		append(&root.contents, ptr)
 	}
-	*/
 }
