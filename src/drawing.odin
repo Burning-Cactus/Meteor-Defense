@@ -104,12 +104,12 @@ random_convex_polygon :: proc(pos:Vec2, rot:f32, points:i32, width_approx:f32, h
 
 // --- Primative Shapes ---
 
-draw_dot :: proc(pos:Vec2, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
+draw_dot :: proc(pos:Vec2, scale_hint:f32, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
 	// drawing slightly oversized because it doesn't look right otherwise
 	rl.DrawCircleV(pos, line_thickness *0.8 / scale_hint, modulate(theme[col], brightness))
 }
 
-draw_line :: proc(start:Vec2, end:Vec2, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
+draw_line :: proc(start:Vec2, end:Vec2, scale_hint:f32, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
 	angle := vec_angle(end - start)
 	a1 := math.to_degrees(angle + math.PI)
 	a2 := math.to_degrees(angle - math.PI)
@@ -120,7 +120,7 @@ draw_line :: proc(start:Vec2, end:Vec2, scale_hint:f32=1.0, col:ThemeColor=.PRIM
 	rl.DrawCircleSector(end, line_thickness/2.0/scale_hint, a2, a1, 8, end_col)
 }
 
-draw_circle :: proc(pos:Vec2, radius:f32, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
+draw_circle :: proc(pos:Vec2, radius:f32, scale_hint:f32, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
 	scaled_radius := radius * scale_hint
 	if scaled_radius < line_thickness * 1.2 {
 		draw_dot(pos, scale_hint, col, brightness)
@@ -225,14 +225,14 @@ draw_random_convex_polygon :: proc(pos: Vec2, rot: f32, points: i32, width_appro
 
 // --- Drawing ---
 
-draw_polygon :: proc(verts:[]Vec2, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32=1.0) {
+draw_polygon :: proc(verts:[]Vec2, scale_hint:f32, col:ThemeColor=.PRIMARY, brightness:f32=1.0) {
 	n := len(verts)
 	for i in 0..<n {
 		draw_line(verts[i], verts[(i + 1) % n], scale_hint, col, brightness)
 	}
 }
 
-draw_shape_base :: proc(s: Drawshape, scale_hint:f32=1.0, col:ThemeColor=.PRIMARY, brightness:f32=1.0) {
+draw_shape_base :: proc(s: Drawshape, scale_hint:f32, col:ThemeColor=.PRIMARY, brightness:f32=1.0) {
 	switch s.type {
 	case .DOT:
 		draw_dot(s.end, scale_hint, col, brightness)
@@ -243,7 +243,7 @@ draw_shape_base :: proc(s: Drawshape, scale_hint:f32=1.0, col:ThemeColor=.PRIMAR
 	}
 }
 
-draw_shape_pro :: proc(s: DrawshapePro, scale_hint:f32=1.0) {
+draw_shape_pro :: proc(s: DrawshapePro, scale_hint:f32) {
 	draw_shape_base(s.drawshape, scale_hint, s.col, s.brightness)
 }
 

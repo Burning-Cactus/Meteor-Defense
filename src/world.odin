@@ -3,15 +3,6 @@ package game
 
 import rl "vendor:raylib"
 
-spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
-	spawn(&state.projectiles, pos, Entity{
-		velocity = velocity,
-		shape = Circle{12},
-		col = .PRIMARY,
-	})
-	play_sfx("shoot")
-}
-
 cursor_entity ::proc() -> Entity {
 	return Entity{
 		pos=state.cursor,
@@ -47,7 +38,7 @@ game_loop :: proc(delta: f32) {
 			meteor := &state.meteors[j]
 			if check_collision(projectile^, meteor^) {
 				projectile.alive = false
-				hurt_meteor(projectile^, meteor)
+				state.money += hurt_entity_with_entity(projectile^, meteor)
 			}
 		}
 	}

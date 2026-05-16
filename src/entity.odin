@@ -3,6 +3,7 @@
 package game
 import rl "vendor:raylib"
 import "core:math"
+import "core:math/rand"
 import "core:fmt"
 
 Rect :: struct {
@@ -38,12 +39,14 @@ Entity :: struct {
 	velocity:  Vec2,
 	rot:       f32,
 	rot_speed: f32,
+	mass:f32,
 	shape: Shape,
 	parent: ^Entity,
 
 	hp: f32,
 	power: f32,
 	col: ThemeColor,
+	brightness : f32,
 
 	draw: proc(e: ^Entity, state: ^GameState),
 	on_death: proc(e: ^Entity, state: ^GameState),
@@ -65,6 +68,7 @@ spawn :: proc(list: ^[dynamic]$T, pos: Vec2, entity: T) -> ^T {
 	e.pos = pos
 	e.id = get_new_entity_id()
 	e.alive = true
+	if e.brightness == 0 do e.brightness = 1.0 // NOTE: this might cause trouble later
 	append(list, e)
 	return &list[len(list) - 1]
 }
@@ -84,7 +88,14 @@ entity_bounds :: proc(e: Entity) -> Vec2 {
 	case Rect:
 		return shape.size
 	case Polygon:
-		break
+		max_x, max_y, min_x, min_y: f32
+		for p in shape.vertices {
+			if p.x > max_x do max_x = p.x
+			if p.y > max_y do min_x = p.y
+			if p.x < min_x do min_x = p.x
+			if p.y < min_y do min_y = p.y
+		}
+		return {max_x - min_x, max_y * min_y}
 	case Circle:
 		x := shape.radius * 2.0
 		return {x, x}
@@ -100,7 +111,8 @@ entity_size :: proc(e: Entity) -> f32 {
 	case Circle:
 		return shape.radius * 2.0
 	case Polygon:
-		break
+		r := entity_bounds(e)
+		return max(r.y, r.y)
 	}
 	return 0
 }
@@ -141,6 +153,37 @@ attach_to_parent :: proc(child: ^Entity, parent: ^Entity) {
 	child.rot -= parent.rot
 	child.parent = parent
 }
+
+// --- Health and Damage ---
+
+entity_mass ::proc(e: Entity) -> f32{
+	if e.mass > 0 do return e.mass
+	r:= entity_bounds(e)
+	return max(r.x * r.y, 1.0)
+}
+
+hurt_entity_directly :: proc(e: ^Entity, damage:f32, impulse:Vec2={}) -> (score_claimed:u32) {
+	e.hp -= damage
+	if imp_sqr:=dist_squared(impulse); imp_sqr > 0 {
+		mass:= entity_mass(e^)
+		e.velocity += impulse / mass
+		rot_change := rand.float32() * 18 - 9
+		e.rot_speed += rot_change / mass
+	}
+	if e.hp <= 0 {
+		e.alive = false
+		return e.value
+	}
+	return
+}
+
+hurt_entity_with_entity :: proc(attacker: Entity, target: ^Entity) -> (score_claimed:u32) {
+	return hurt_entity_directly(target, attacker.power, attacker.velocity * entity_mass(attacker) * 0.5)
+}
+
+hurt_entity :: proc {hurt_entity_directly, hurt_entity_with_entity}
+
+
 
 // --- Collision ---
 
@@ -367,6 +410,6 @@ draw_entity :: proc(e: ^Entity, state: ^GameState) {
 		e.draw(e, state)
 		if draw_debug do draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), scale_hint, .DEBUG)
 	} else {
-		draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), scale_hint, e.col)
+		draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), scale_hint, e.col, e.brightness)
 	}
 }

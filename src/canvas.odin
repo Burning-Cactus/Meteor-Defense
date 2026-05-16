@@ -160,17 +160,6 @@ curr_shape: Drawshape
 root:            DrawshapeGroup = {name = "root"}
 selected_shapes: [dynamic]ShapeRef
 
-/*
-dot_icon    := Drawshape{.DOT, {}, {}}
-line_icon   := Drawshape{.LINE, {-.4,-.4}, {.4,.4}}
-circle_icon := Drawshape{.CIRCLE, {}, {.4,0}}
-
-canvas_tools := [3]UITool{
-	{title = "Dot",    icon = dot_icon,    use = proc() { draw_mode = .DOT }},
-	{title = "Line",   icon = line_icon,   use = proc() { draw_mode = .LINE }},
-	{title = "Circle", icon = circle_icon, use = proc() { draw_mode = .CIRCLE }},
-}
-*/
 
 canvas_loop :: proc(delta: f32) {
 	select_threshold := 20.0 / state.scale_hint

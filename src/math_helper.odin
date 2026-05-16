@@ -13,6 +13,10 @@ dist_squared :: proc(a: Vec2, b: Vec2 = {}) -> f32 {
 	return x * x + y * y
 }
 
+dist :: proc(a: Vec2, b: Vec2 = {}) -> f32 {
+	return math.sqrt(dist_squared(a,b))
+}
+
 sqr :: proc(f: f32) -> f32 {
 	return f * f
 }

@@ -28,33 +28,44 @@ Tower :: struct {
 }
 
 TowerPreset :: struct {
-	cost:          u32,
-	size:          f32,
-	height:        f32,
-	barrel_length: f32,
-	cooldown:      f32,
+	cost:u32,
 
-	turn_speed:    f32,
-	range:         f32,
-	aim_arc:       i32,
-	attentiveness: f32,
-	aim_tolerance: f32,
+	size,
+	height,
+	barrel_length:f32,
 
-	target_closeness_bias, target_ahead_bias: f32,
+	cooldown,
+	damage:f32,
+
+	aim_arc:i32,
+	turn_speed,
+	range,
+	aim_tolerance:f32,
+
+	attentiveness,
+	target_closeness_bias,
+	target_ahead_bias:f32,
 }
 
 tower_presets := [TowerType]TowerPreset{
 	.CANNON = {
 		cost          = 20,
+
 		size          = 48,
 		height        = 80,
 		barrel_length = 40,
+
 		cooldown      = 0.2,
+		damage=1.0,
+
 		turn_speed    = 1.8,
 		range         = 800,
 		aim_arc       = 80,
-		attentiveness = 1,
 		aim_tolerance = 0.08,
+
+		attentiveness = 1,
+		target_closeness_bias = 1.0,
+		target_ahead_bias = 1.0,
 	},
 	.LASER = {
 		cost          = 5,
@@ -62,10 +73,13 @@ tower_presets := [TowerType]TowerPreset{
 		height        = 60,
 		barrel_length = 30,
 		cooldown      = 2.0,
+		damage=3.0,
 		turn_speed    = 5,
 		range         = 1800,
 		aim_arc       = 60,
-		attentiveness = 6,
+		attentiveness = 0.1,
+		target_closeness_bias = 0.2,
+		target_ahead_bias = 1.0,
 	},
 }
 
@@ -75,6 +89,7 @@ init_tower :: proc(tower: ^Tower, type: TowerType) {
 	tower.col           = .BLUE
 	tower.shape         = Circle{preset.size / 2}
 	tower.cooldown      = preset.cooldown
+	tower.power         = preset.damage
 	tower.value         = preset.cost
 	tower.draw          = draw_tower
 	tower.scale         = 1.0
@@ -87,6 +102,7 @@ init_tower :: proc(tower: ^Tower, type: TowerType) {
 	tower.target_ahead_bias = 1.0 //preset.target_ahead_bias
 
 	assert(tower.target_ahead_bias + tower.target_closeness_bias > 0)
+	assert(tower.power > 0)
 }
 
 check_tower_near_cursor :: proc(t: Tower, state: ^GameState) -> bool {
@@ -123,15 +139,16 @@ target_score :: proc(tower: ^Tower, target: Entity) -> f32 {
 }
 
 aim_debug :: false
-find_target_for_tower :: proc(tower: ^Tower, state: ^GameState) -> (target_pos:Vec2, best_score:f32) {
-	if aim_debug {
-		return state.cursor, target_score(tower, cursor_entity())
-	}
-	for target in state.meteors {
-		score := target_score(tower, target)
+// Use the target_score function to get the best target.
+// If `best_score` == 0 then no valid target was found
+// NOTE: `target` Entity return may go out of date if not used immediately
+// Don't save it, instead, save the id and search for it later
+find_target_for_tower :: proc(tower: ^Tower, state: ^GameState) -> (target:^Entity, best_score:f32) {
+	for &m in state.meteors {
+		score := target_score(tower, m)
 		if score > best_score {
-			target_pos = entity_world_pos(target)
 			best_score = score
+			target = &m
 		}
 	}
 	return
@@ -150,12 +167,10 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 			state.highlighted_tower = tower
 		}
 
-		//targetting logic
 		if rand.float32() < tower.attentiveness * delta {
 			found_target, found_target_score := find_target_for_tower(tower, state)
 			tower.has_target = found_target_score > 0
-			tower.target = found_target
-			tower.debug_info = found_target_score
+			if tower.has_target do tower.target = entity_world_pos(found_target^)
 		}
 
 		base_angle := entity_world_rot(tower^)
@@ -196,15 +211,36 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 		}
 	}
 
-	if state.highlighted_tower != nil && !check_tower_near_cursor(state.highlighted_tower^, state) {
+	if state.highlighted_tower != nil && !check_collision(state.highlighted_tower^, cursor_entity()) {
 		state.highlighted_tower = nil
 	}
 }
 
-shoot :: proc(t: ^Tower, state: ^GameState) {
-	bulletSpeed :: 1000
-	spawn_bullet(state, t.bullet_origin, unit_vector(t.barrel_angle) * bulletSpeed)
+spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
+	spawn(&state.projectiles, pos, Entity{
+		velocity = velocity,
+		shape = Circle{12},
+		col = .PRIMARY,
+		power = 1.0,
+	})
+	play_sfx("shoot")
 }
+
+shoot :: proc(t: ^Tower, state: ^GameState) {
+	switch t.type {
+	case .CANNON:
+		spawn_bullet(state, t.bullet_origin, unit_vector(t.barrel_angle) * 1000)
+	case .LASER:
+		target, score := find_target_for_tower(t, state)
+		t.has_target = score > 0
+		if t.has_target {
+			t.target = entity_world_pos(target^)
+			spawn_laser_pulse(state, t.bullet_origin, t.target)
+			state.money += hurt_entity_directly(target, t.power, {})
+		}
+		play_sfx("shoot")
+	}
+	}
 
 draw_tower :: proc(t: ^Tower, state: ^GameState) {
 	brightness: f32 = 1.0
@@ -217,6 +253,7 @@ draw_tower :: proc(t: ^Tower, state: ^GameState) {
 	base   := Bone{global_pos, global_pos + unit_vector(rot) * tower_presets[t.type].height * t.scale}
 	barrel := Bone{base.tip, base.tip + unit_vector(t.barrel_angle) * tower_presets[t.type].barrel_length * t.scale}
 	//draw_entity_debug_lines(t, t.debug_info)
+	//draw_line(entity_world_pos(t), t.target, state.scale_hint)
 
 	switch t.type {
 	case .LASER:
