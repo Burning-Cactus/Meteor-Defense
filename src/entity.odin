@@ -46,6 +46,7 @@ Entity :: struct {
 	age: f32,
 	lifetime: f32,
 	hp: f32,
+	max_hp: f32,
 	power: f32,
 	col: ThemeColor,
 	brightness : f32,
@@ -417,12 +418,11 @@ draw_entity_debug_lines :: proc(e: Entity, values: ..any) {
 
 draw_debug := false
 draw_entity :: proc(e: ^Entity, state: ^GameState) {
-	scale_hint: f32 = 1.0
-	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
 	if e.draw != nil {
 		e.draw(e, state)
-		if draw_debug do draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), scale_hint, .DEBUG)
+		if draw_debug do draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), state.scale_hint, .DEBUG)
 	} else {
-		draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), scale_hint, e.col, e.brightness)
+		dmg_brightness := e.brightness * damage_brightness_mod(e^, state.gameTime)
+		draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), state.scale_hint, e.col, dmg_brightness)
 	}
 }

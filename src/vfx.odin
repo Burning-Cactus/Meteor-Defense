@@ -4,6 +4,22 @@ import "core:math"
 import "core:math/rand"
 import simplex "core:math/noise"
 
+// Returns a brightness multiplier in [0,1] that flickers faster/deeper as hp falls.
+// At full health returns 1.0 (no flicker). At zero health oscillates between 0 and 1.
+damage_brightness_mod_entity:: proc(e:Entity,  game_time:f64=0) -> f32 {
+	t:=f32(game_time) if game_time > 0 else e.age
+	return damage_brightness_mod_direct(e.hp, e.max_hp, t)
+}
+damage_brightness_mod_direct :: proc(hp:f32, max_hp:f32, t:f32) -> f32 {
+	if max_hp <= 0 || hp >= max_hp do return 1.0
+	health_ratio := clamp(hp / max_hp, 0, 1)
+	damage_ratio := 1.0 - health_ratio
+	flicker := math.sin_f32(t * 8.0) * 0.5 + 0.5
+	return 1.0 - damage_ratio * flicker
+}
+
+damage_brightness_mod :: proc{damage_brightness_mod_direct, damage_brightness_mod_entity}
+
 VfxType :: enum { BANG, SPARK, DEBRIS, LASER }
 
 Vfx :: struct {
@@ -105,7 +121,7 @@ spawn_debris :: proc(state: ^GameState, a: Vec2, b: Vec2, vel: Vec2, col: ThemeC
 
 // EXPLODED: spawns one debris piece per polygon edge, each flying away from the polygon center.
 // Expects a world-space polygon (already rotated and translated).
-spawn_exploded :: proc(state: ^GameState, poly: []Vec2, col: ThemeColor, initial_velocity:Vec2={}, impulse: f32 = 30.0) {
+spawn_exploded :: proc(state: ^GameState, poly: []Vec2, col: ThemeColor, initial_velocity:Vec2={}, impulse: f32 = 30.0, lifetime:f32=0.4, brightness:f32=2.0) {
 	center: Vec2
 	for v in poly do center += v
 	center /= f32(len(poly))
@@ -115,7 +131,7 @@ spawn_exploded :: proc(state: ^GameState, poly: []Vec2, col: ThemeColor, initial
 		b   := poly[(i+1) % n]
 		mid := (a + b) / 2
 		vel := get_normalized_vector_facing_target(center, mid) * impulse * (0.7 + rand.float32() * 0.6) + initial_velocity
-		spawn_debris(state, a, b, vel, col)
+		spawn_debris(state, a, b, vel, col, lifetime, brightness)
 	}
 }
 

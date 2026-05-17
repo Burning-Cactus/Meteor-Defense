@@ -2,6 +2,8 @@
 package game
 
 import rl "vendor:raylib"
+import "core:math"
+import "core:fmt"
 
 cursor_entity ::proc() -> Entity {
 	return Entity{
@@ -11,24 +13,64 @@ cursor_entity ::proc() -> Entity {
 	}
 }
 
-draw_comet_heart ::proc(comet: ^Entity) {
+star_heart_polygon :: proc(i:int) -> (segments:[5][4]Vec2) {
+	comet:= state.comet
 	star := star_polygon(
-		entity_world_pos(comet^),
-		entity_world_rot(comet^),
+		entity_world_pos(comet),
+		entity_world_rot(comet),
 		5, 50, 0.5,
 	)
-	segments:[5][]Vec2
-	for i in 0..<5 {
-		i2:= i * 2
-		segment := []Vec2{
+	for j in 0..<i {
+		i2 := j * 2
+		segment := [4]Vec2{
 			star[(i2+1) % (len(star))],
 			star[(i2+2) % (len(star))],
 			star[(i2+3) % (len(star))],
-			entity_world_pos(comet^),
+			entity_world_pos(comet),
 		}
-		segments[i] = segment
-		if comet.hp > f32(i) do draw_polygon(segments[i], state.scale_hint, .BLUE)
+		segments[j] = segment
 	}
+	return
+}
+
+draw_comet_heart :: proc(comet: ^Entity, state: ^GameState) {
+	segments := star_heart_polygon(int(math.ceil(comet.hp)))
+	for i in 0..<len(segments) {
+		if comet.hp <= f32(i) do continue
+		bmod: f32 = 1.0
+		if f32(i) < comet.hp && comet.hp < f32(i + 1) {
+			frac := comet.hp - f32(i)
+			bmod = damage_brightness_mod(frac, 1.0, f32(state.gameTime))
+		}
+		draw_polygon(segments[i][:], state.scale_hint, .BLUE, bmod)
+	}
+}
+
+hurt_comet :: proc(dmg:f32) {
+	dmg:=dmg
+	for dmg>0.5 {
+		hurt_comet(0.5)
+		dmg-=0.5
+	}
+
+	hp_segments_f, segment_health := math.modf(state.comet.hp)
+	hp_segments := int(hp_segments_f)
+	fmt.eprintfln("Comet hit!\n%d segments, %.0f%% segment hp", hp_segments, segment_health*100)
+	fmt.eprintfln("Incoming Damager: %.1f", dmg)
+
+	if (segment_health > 0 && dmg >= segment_health) {
+		assert(hp_segments < 5)
+		seg:= star_heart_polygon(hp_segments + 1)[hp_segments]
+		spawn_exploded(&state, seg[:], .BLUE, seg[1], 16.0, 0.2, 3.0)
+	}
+	state.comet.hp -= dmg
+}
+
+draw_comet :: proc(comet: ^Entity, state: ^GameState) {
+	e := comet^
+	e.hp=e.max_hp // HACK to override damage flashing
+	draw_entity(&e, state)
+	draw_comet_heart(comet, state)
 }
 
 // I'm thinking particles can be handled later with an arena.
@@ -91,8 +133,7 @@ handle_input :: proc() {
 }
 
 draw_game_screen :: proc(state: ^GameState) {
-	draw_entity(&state.comet, state)
-	draw_comet_heart(&state.comet)
+	draw_comet(&state.comet, state)
 	draw_entity(&state.player, state)
 
 	for i in 0 ..< len(state.meteors) {

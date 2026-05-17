@@ -35,7 +35,7 @@ meteor_presets := [MeteorType]MeteorPreset{
 		spin = 0.8,
 		size = 16,
 		health = 1.0,
-		power = 1.0,
+		power = 0.2,
 		reward = 1,
 	},
 	.METEOROID = {
@@ -61,9 +61,9 @@ draw_meteor :: proc(m: ^Meteor, state: ^GameState) {
 	scale_hint: f32 = 1.0
 	if state != nil && state.scale_hint != 0 do scale_hint = state.scale_hint
 	if m.polygon != nil {
-		draw_polygon_transformed(m.polygon, m.pos, m.rot, scale_hint, m.col)
+		draw_polygon_transformed(m.polygon, m.pos, m.rot, scale_hint, m.col, m.brightness * damage_brightness_mod(m))
 	} else {
-		draw_star(m.pos, m.rot, 5, entity_size(m)/2, 0.6, scale_hint, m.col)
+		draw_star(m.pos, m.rot, 5, entity_size(m)/2, 0.6, scale_hint, m.col, m.brightness * damage_brightness_mod(m))
 	}
 }
 
@@ -90,7 +90,7 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 		meteor := &state.meteors[i]
 		update_entity(meteor, delta)
 		if check_collision(meteor^, state.comet) {
-			state.comet.hp -= meteor.power
+			hurt_comet(meteor.power)
 			meteor.alive = false
 		}
 	}
@@ -134,6 +134,7 @@ spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 		draw = draw_meteor,
 		shape = Circle{preset.size}, //TODO: support polygonal asteroids
 		hp = preset.health,
+		max_hp = preset.health,
 		rot_speed = preset.spin,
 		value = preset.reward,
 		power = preset.power,

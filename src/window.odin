@@ -51,6 +51,7 @@ reset_game :: proc() {
 		comet = Entity{
 			label      = "comet",
 			hp         = 5.0,
+			max_hp     = 5.0,
 			shape      = Polygon{pentagon},
 			brightness = 1.0,
 		},

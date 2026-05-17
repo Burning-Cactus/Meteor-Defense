@@ -226,8 +226,8 @@ draw_box ::proc(start:Vec2, end:Vec2,  scale_hint: f32 = 1.0, col: ThemeColor = 
 	}, scale_hint, col, brightness)
 }
 
-draw_star :: proc(pos: Vec2, rot: f32, points: i32, radius: f32, sharpness: f32, scale_hint: f32, col: ThemeColor) {
-	draw_polygon(star_polygon(pos, rot, points, radius, sharpness), scale_hint, col)
+draw_star :: proc(pos: Vec2, rot: f32, points: i32, radius: f32, sharpness: f32, scale_hint: f32, col: ThemeColor=.PRIMARY, brightness:f32=1.0) {
+	draw_polygon(star_polygon(pos, rot, points, radius, sharpness), scale_hint, col, brightness)
 }
 
 draw_random_convex_polygon :: proc(pos: Vec2, rot: f32, points: i32, width_approx: f32, height_approx: f32, seed: u64, scale_hint: f32, col: ThemeColor) {
