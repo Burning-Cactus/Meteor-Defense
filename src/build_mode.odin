@@ -9,7 +9,8 @@ current_pending_tower:Tower
 selectable_towers:[]TowerType = {.LASER, .CANNON}
 selected_tower_idx:=-1
 draw_tower_toolbar ::proc() {
-	result := draw_toolbar({10, 50}, .TOP_LEFT, .BOTTOM, len(selectable_towers), draw_tower_selector)
+	w,h := f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())
+	result := draw_toolbar({w/2, h-min(30, h/10)}, .BOTTOM, .RIGHT, len(selectable_towers), draw_tower_selector)
 	if result != -1 {
 		if result != selected_tower_idx || !state.buildMode {
 			selected_tower_idx = result
@@ -35,13 +36,14 @@ draw_tower_selector :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hi
 	}
 
 	center, size := box_geo(start, end)
+	toolslot_scale := (end.y - start.y)/ tool_slot_size
 	icon := Tower{rot=-math.PI/2, pos={center.x, end.y}}
 	init_tower(&icon, type)
 	switch type {
 	case .CANNON:
-		icon.scale = 0.35
+		icon.scale = 0.35 * toolslot_scale
 	case .LASER:
-		icon.scale = 0.4
+		icon.scale = 0.4 * toolslot_scale
 	}
 	icon.barrel_angle = -math.PI / 6
 	null_state:=GameState{scale_hint=1.0}

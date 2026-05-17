@@ -106,18 +106,36 @@ draw_tool_basic :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f
 }
 
 draw_toolbar :: proc(
-		start: Vec2, anchor: DrawDirection, list_direction: DrawDirection, count:int,
-		draw_tool:proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f32=1.0) -> bool=draw_tool_basic) -> int{
-	slot := tool_slot_size
-	step := direction_offset(list_direction) * (slot + 18.0)
-	offset := direction_offset(anchor) * -tool_slot_size
-	// TODO complete direction handling isn't done
-	selected_tool := -1
-	for i in 0..<count {
-		slot_start := start + step * f32(i)
-		slot_end := slot_start + offset
-		if draw_tool(slot_start, slot_end, i, rl.GetMousePosition()) do selected_tool = i
+		start: Vec2, anchor: DrawDirection, list_direction: DrawDirection, count: int,
+		draw_tool: proc(start: Vec2, end: Vec2, idx: int, cursor: Vec2, scale_hint: f32 = 1.0) -> bool = draw_tool_basic) -> int {
+	slot := min(tool_slot_size, f32(rl.GetScreenHeight())/8, f32(rl.GetScreenWidth())/8)
+	gap: f32 = 18.0
+	list_dir  := direction_offset(list_direction)
+	anchor_dir := direction_offset(anchor)
+
+	// Total bounding box of the toolbar along each axis.
+	// Grows in the list direction; stays one slot wide on the perpendicular axis.
+	span := f32(count) * (slot + gap) - gap
+	bbox_size := Vec2{
+		span if list_dir.x != 0 else slot,
+		span if list_dir.y != 0 else slot,
 	}
-	return selected_tool // the "correct" way to do this is with `return selected_tool, ok`
+
+	// Map the anchor point to the top-left corner of the bounding box.
+	// anchor_dir in [-1,1]: (dir+1)/2 gives 0..1 as fraction across the bbox.
+	bbox_topleft := start - (anchor_dir + {1, 1}) / 2 * bbox_size
+
+	// When the list runs in a negative direction, slot 0 starts at the far end.
+	slot_0 := bbox_topleft
+	if list_dir.x < 0 do slot_0.x = bbox_topleft.x + bbox_size.x - slot
+	if list_dir.y < 0 do slot_0.y = bbox_topleft.y + bbox_size.y - slot
+
+	step := list_dir * (slot + gap)
+	selected_tool := -1
+	for i in 0 ..< count {
+		s := slot_0 + step * f32(i)
+		if draw_tool(s, s + slot, i, rl.GetMousePosition()) do selected_tool = i
+	}
+	return selected_tool
 }
 

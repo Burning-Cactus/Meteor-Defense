@@ -14,6 +14,18 @@ paused: bool
 camera: rl.Camera2D
 prev_window_size: Vec2
 
+// Reference screen size; zoom and line_thickness are calibrated for this.
+REFERENCE_SCREEN_METRIC:f32: 1000 // (1280 + 720) / 2
+BASE_CAMERA_ZOOM:f32: 4.0
+
+screen_size_metric :: proc() -> f32 {
+	return (f32(rl.GetScreenWidth()) + f32(rl.GetScreenHeight())) / 2
+}
+
+screen_size_ratio :: proc() -> f32 {
+	return screen_size_metric() / REFERENCE_SCREEN_METRIC
+}
+
 TRANSITION_SPEED:f32:1/ 	0.3//seconds
 ZOOMOUT_SPEED:f32:2/    	1//seconds
 GAME_OVER_SLOMO_TIME:f32:	3// seconds to reach zero time scale
@@ -76,7 +88,7 @@ reset_game :: proc() {
 	init_background()
 	camera.offset = Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
 	camera.target = state.player.pos
-	camera.zoom = 4.0
+	camera.zoom = BASE_CAMERA_ZOOM * screen_size_ratio()
 }
 
 game_over :: proc() {
@@ -87,9 +99,15 @@ game_over :: proc() {
 
 pan_to_new_window_size :: proc() {
 	curr_size := Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())}
+	old_metric := (prev_window_size.x + prev_window_size.y) / 2
+	new_metric := (curr_size.x + curr_size.y) / 2
+	if old_metric > 0 {
+		camera.zoom *= new_metric / old_metric
+	}
 	delta := curr_size - prev_window_size
 	camera.target -= delta * (0.5 / camera.zoom)
 	prev_window_size = curr_size
+	line_thickness = BASE_LINE_THICKNESS * (new_metric / REFERENCE_SCREEN_METRIC)
 }
 
 get_frustum :: proc() -> (start:Vec2, end:Vec2) {
@@ -157,7 +175,8 @@ handle_camera_move ::proc(delta:f32) {
 
 	// Zoom to cursor with scroll wheel
 	wheel := rl.GetMouseWheelMove()
-	if (wheel > 0 && camera.zoom <= state.max_zoom - 0.1) || wheel < 0 {
+	effective_max_zoom := state.max_zoom * screen_size_ratio()
+	if (wheel > 0 && camera.zoom <= effective_max_zoom - 0.1) || wheel < 0 {
 		scale := f32(0.2) * wheel
 		mouse_world := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 		camera.offset = rl.GetMousePosition()
@@ -165,8 +184,8 @@ handle_camera_move ::proc(delta:f32) {
 		camera.zoom = clamp(math.exp_f32(math.ln_f32(camera.zoom) + scale), f32(0.125), f32(64.0))
 	}
 
-	if state.max_zoom > 0 && camera.zoom > state.max_zoom {
-		camera.zoom += (state.max_zoom - camera.zoom) * ZOOMOUT_SPEED * delta
+	if state.max_zoom > 0 && camera.zoom > effective_max_zoom {
+		camera.zoom += (effective_max_zoom - camera.zoom) * ZOOMOUT_SPEED * delta
 	}
 
 	state.scale_hint = camera.zoom
