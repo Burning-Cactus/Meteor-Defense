@@ -82,6 +82,7 @@ reset_game :: proc() {
 game_over :: proc() {
 	state.gameOver  = true
 	state.endReason = .Defeat
+	play_sfx("defeat")
 }
 
 pan_to_new_window_size :: proc() {
@@ -121,6 +122,7 @@ draw_title_screen :: proc() {
 	)
 	rl.GuiLabel({midPoint.x - 280, midPoint.y - 90, 560, 20}, "Welcome to JellyJam!")
 	if rl.GuiButton({midPoint.x - 280, midPoint.y - 60, 560, 60}, "Start game") {
+		play_sfx("game_start")
 		transition_to(.Game)
 	}
 }
@@ -220,6 +222,7 @@ update :: proc() {
 				if state.timeRemaining <= 0 {
 					state.gameOver  = true
 					state.endReason = .Victory
+					play_sfx("victory")
 				}
 			}
 		}

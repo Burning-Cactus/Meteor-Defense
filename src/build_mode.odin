@@ -106,6 +106,7 @@ draw_build_mode :: proc(state: ^GameState) {
 			spawn(&state.towers, current_pending_tower.pos, current_pending_tower)
 			current_pending_tower = {}
 			state.buildMode = false
+			play_sfx("place_tower")
 		} else do play_sfx("ui_error")
 	}
 }

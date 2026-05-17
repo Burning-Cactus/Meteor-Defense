@@ -244,7 +244,7 @@ spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
 		power = 1.0,
 		lifetime = 10,
 	})
-	play_sfx("shoot")
+	play_sfx("shoot2")
 }
 
 shoot :: proc(t: ^Tower, state: ^GameState) {

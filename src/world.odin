@@ -63,7 +63,9 @@ hurt_comet :: proc(dmg:f32) {
 		assert(hp_segments < 5)
 		seg:= star_heart_polygon(hp_segments + 1)[hp_segments]
 		spawn_exploded(&state, seg[:], .BLUE, seg[1], 16.0, 0.2, 3.0)
+		play_sfx("comet_break")
 	}
+	play_sfx("comet_hit")
 	state.comet.hp -= dmg
 	if state.comet.hp <= 0 {
 		state.comet.alive = false
@@ -71,6 +73,7 @@ hurt_comet :: proc(dmg:f32) {
 		if ok do spawn_exploded(&state, p.vertices, state.comet.col, {}, 60, 0.6, 1.0)
 		spawn_bang(&state, state.comet.pos, entity_size(state.comet) * 3, 0.5, 0.2, 0.5)
 		spawn_bang(&state, state.comet.pos, entity_size(state.comet) * 3, 1.0, 0, 0.3)
+		play_sfx("comet_death")
 		game_over()
 	}
 }
@@ -147,6 +150,7 @@ game_loop :: proc(delta: f32) {
 			if check_collision(projectile^, meteor^) {
 				projectile.alive = false
 				state.money += hurt_entity_with_entity(projectile^, meteor)
+				play_sfx("projectile_hit")
 			}
 		}
 	}

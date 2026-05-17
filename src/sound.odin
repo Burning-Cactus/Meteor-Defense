@@ -1,3 +1,4 @@
+#+feature dynamic-literals // TODO is this a good idea?
 package game
 
 import "core:fmt"
@@ -23,7 +24,6 @@ SFXSettings :: struct {pitch, volume, pitch_variation, volume_variation : f32}
 default_sfx_settings:SFXSettings = {1.0, 1.0, 0, 0}
 
 init_sfx :: proc() {
-	_sfx_map = make(map[string]rl.Sound)
 	for file in sfx_files {
 		if len(file.name) < 5 || file.name[len(file.name)-4:] != ".wav" do continue
 		name := file.name[:len(file.name)-4]
@@ -108,7 +108,26 @@ play_sfx :: proc(name: string, settings:SFXSettings={}) {
 
 	settings:=settings
 	if settings == {} {
-		settings = default_sfx_settings
+		switch name {
+		case "shoot":
+			settings={pitch=1.0, volume=1.0, pitch_variation=0.05}
+		case "shoot1":
+			settings={pitch=1.0, volume=1.0, pitch_variation=0.1}
+		case "shoot2":
+			settings={pitch=1.5, volume=.5, pitch_variation=0.1, volume_variation=0.2}
+		case "hit":
+			settings={pitch=.5, volume=0.4, pitch_variation=0.2, volume_variation=0.2}
+		case "asteroid_hit":
+			settings={pitch=.8, volume=1.0, pitch_variation=0.1}
+		case "projectile_hit":
+			settings={pitch=1.0, volume=1.0, pitch_variation=0.15}
+		case "comet_hit":
+			settings={pitch=1.0, volume=0.8, pitch_variation=0.1, volume_variation=0.3}
+		case "comet_break":
+			settings={pitch=1.0, volume=1.0, pitch_variation=0.1, volume_variation=0.3}
+		case:
+			settings = default_sfx_settings
+		}
 	}
 
 	volume := vary(settings.volume, settings.volume_variation)
