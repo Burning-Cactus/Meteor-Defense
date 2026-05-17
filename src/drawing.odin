@@ -104,6 +104,7 @@ random_convex_polygon :: proc(pos:Vec2, rot:f32, points:i32, width_approx:f32, h
 
 // --- Primative Shapes ---
 
+do_culling:bool = true
 draw_dot :: proc(pos:Vec2, scale_hint:f32, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
 	// drawing slightly oversized because it doesn't look right otherwise
 	rl.DrawCircleV(pos, line_thickness *0.8 / scale_hint, modulate(theme[col], brightness))
@@ -121,6 +122,16 @@ draw_line :: proc(start:Vec2, end:Vec2, scale_hint:f32, col:ThemeColor=.PRIMARY,
 }
 
 draw_circle :: proc(pos:Vec2, radius:f32, scale_hint:f32, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
+	if do_culling {
+		sw := f32(rl.GetScreenWidth())
+		sh := f32(rl.GetScreenHeight())
+		tl := rl.GetScreenToWorld2D({0, 0}, camera)
+		br := rl.GetScreenToWorld2D({sw, sh}, camera)
+		if pos.x + radius < tl.x || pos.x - radius > br.x ||
+		   pos.y + radius < tl.y || pos.y - radius > br.y {
+			return
+		}
+	}
 	scaled_radius := radius * scale_hint
 	if scaled_radius < line_thickness * 1.2 {
 		draw_dot(pos, scale_hint, col, brightness)

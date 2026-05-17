@@ -45,7 +45,9 @@ draw_tower_selector :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hi
 	}
 	icon.barrel_angle = -math.PI / 6
 	null_state:=GameState{scale_hint=1.0}
+	do_culling=false //HACK
 	draw_entity(&icon, &null_state)
+	do_culling=true
 
 	draw_box(start, end, scale_hint, .PRIMARY, brightness)
 	inner_corner := start+ size/10
