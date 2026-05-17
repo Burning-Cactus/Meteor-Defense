@@ -207,10 +207,12 @@ update :: proc() {
 
 	rl.BeginTextureMode(shader_target)
 
-	// non opaque screen clear
+	// non opaque screen clear — both values scale with delta so trail length and
+	// brightness are framerate-independent. 100 fps is the reference.
 	afterimage_amount :: 0.65
-	curr_fps := max(cast(f32)rl.GetFPS(), 1.0)
-	wipe_opacity := cast(u8) min(255.0 * (1.0 - afterimage_amount) * 100.0 / curr_fps, 255.0)
+	fps_scale := min(delta * 100.0, 255.0)
+	wipe_opacity    := cast(u8) min(255.0 * (1.0 - afterimage_amount) * fps_scale, 255.0)
+	draw_opacity     = BASE_DRAW_OPACITY * fps_scale
 	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, wipe_opacity})
 
 	if performance_test {
