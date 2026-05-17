@@ -11,6 +11,26 @@ cursor_entity ::proc() -> Entity {
 	}
 }
 
+draw_comet_heart ::proc(comet: ^Entity) {
+	star := star_polygon(
+		entity_world_pos(comet^),
+		entity_world_rot(comet^),
+		5, 50, 0.5,
+	)
+	segments:[5][]Vec2
+	for i in 0..<5 {
+		i2:= i * 2
+		segment := []Vec2{
+			star[(i2+1) % (len(star))],
+			star[(i2+2) % (len(star))],
+			star[(i2+3) % (len(star))],
+			entity_world_pos(comet^),
+		}
+		segments[i] = segment
+		if comet.hp > f32(i) do draw_polygon(segments[i], state.scale_hint, .BLUE)
+	}
+}
+
 // I'm thinking particles can be handled later with an arena.
 game_loop :: proc(delta: f32) {
 	if state.buildMode {
@@ -71,8 +91,8 @@ handle_input :: proc() {
 }
 
 draw_game_screen :: proc(state: ^GameState) {
-	state.comet.col = .RED if check_collision(state.comet, state.player) else .PRIMARY
 	draw_entity(&state.comet, state)
+	draw_comet_heart(&state.comet)
 	draw_entity(&state.player, state)
 
 	for i in 0 ..< len(state.meteors) {

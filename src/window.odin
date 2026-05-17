@@ -50,7 +50,7 @@ reset_game :: proc() {
 		},
 		comet = Entity{
 			label      = "comet",
-			hp         = 20.0,
+			hp         = 5.0,
 			shape      = Polygon{pentagon},
 			brightness = 1.0,
 		},
@@ -93,7 +93,7 @@ draw_title_screen :: proc() {
 	}
 }
 
-performance_test :: true
+performance_test :: false
 init :: proc() {
 	if !performance_test {
 		rl.SetConfigFlags({.VSYNC_HINT})
@@ -192,13 +192,7 @@ update :: proc() {
 				rl.WHITE,
 			)
 			rl.DrawText(rl.TextFormat("$%d", state.money), screenSize.x - 240, 40, 20, rl.WHITE)
-			rl.DrawText(
-				rl.TextFormat("HP: %.0f", state.comet.hp),
-				screenSize.x - 240,
-				70,
-				20,
-				rl.WHITE,
-			)		}
+		}
 	case .Draw:
 		draw_canvas_toolbar()
 		rl.BeginMode2D(camera)
