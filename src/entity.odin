@@ -43,6 +43,8 @@ Entity :: struct {
 	shape: Shape,
 	parent: ^Entity,
 
+	age: f32,
+	lifetime: f32,
 	hp: f32,
 	power: f32,
 	col: ThemeColor,
@@ -82,6 +84,17 @@ remove_dead :: proc(list: ^[dynamic]$T, state: ^GameState) {
 		}
 	}
 }
+
+update_entity :: proc(e: ^Entity, delta: f32) {
+	if !e.alive do return
+	e.age += delta
+	e.pos += e.velocity * delta
+	e.rot += e.rot_speed * delta
+	if e.lifetime > 0 && e.age >= e.lifetime {
+		e.alive = false
+	}
+}
+
 
 entity_bounds :: proc(e: Entity) -> Vec2 {
 	switch shape in e.shape {

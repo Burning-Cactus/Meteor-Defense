@@ -88,11 +88,7 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 	meteorCount := len(state.meteors)
 	for i in 0..<meteorCount {
 		meteor := &state.meteors[i]
-		if !meteor.alive do continue
-
-		meteor.rot += meteor.rot_speed * delta
-		meteor.pos += meteor.velocity * delta
-
+		update_entity(meteor, delta)
 		if check_collision(meteor^, state.comet) {
 			state.comet.hp -= meteor.power
 			meteor.alive = false

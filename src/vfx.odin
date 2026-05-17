@@ -9,21 +9,13 @@ VfxType :: enum { BANG, SPARK, DEBRIS, LASER }
 Vfx :: struct {
 	using entity: Entity,
 	type:     VfxType,
-	age:      f32,
-	lifetime: f32,
 	line:     [2]Vec2, // local-space endpoints, used by DEBRIS
 }
 
 update_vfx :: proc(state: ^GameState, delta: f32) {
 	for i in 0..<len(state.vfx) {
 		v := &state.vfx[i]
-		if !v.alive do continue
-		v.age += delta
-		v.pos += v.velocity * delta
-		v.rot += v.rot_speed * delta
-		if v.age >= v.lifetime {
-			v.alive = false
-		}
+		update_entity(v, delta)
 	}
 }
 

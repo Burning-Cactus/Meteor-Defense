@@ -1,0 +1,35 @@
+diff --git a/src/drawing.odin b/src/drawing.odin
+index b97b7e4..2758da2 100644
+--- a/src/drawing.odin
++++ b/src/drawing.odin
+@@ -186,14 +186,16 @@ rotate_polygon :: proc(poly: Polygon, rot: f32, pos: Vec2 = 0, allocator := cont
+ draw_polygon_transformed :: proc(verts: []Vec2, pos: Vec2, rot: f32, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) {
+ 	last_idx := len(verts) - 1
+ 	rot_mat := calculate_rotation_matrix(rot)
++	line_col := modulate(theme[col], brightness)
++	thickness := line_thickness / scale_hint
+ 	for i in 0 ..< last_idx {
+ 		a := verts[i] * rot_mat + pos
+ 		b := verts[i + 1] * rot_mat + pos
+-		draw_line(a, b, scale_hint, col, brightness)
++		rl.DrawLineEx(a, b, thickness, line_col)
+ 	}
+ 	a := verts[last_idx] * rot_mat + pos
+ 	b := verts[0] * rot_mat + pos
+-	draw_line(a, b, scale_hint, col, brightness)
++	rl.DrawLineEx(a, b, thickness, line_col)
+ }
+ 
+ draw_rect :: proc(pos: Vec2, size: Vec2, rot: f32, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) {
+@@ -227,8 +229,10 @@ draw_random_convex_polygon :: proc(pos: Vec2, rot: f32, points: i32, width_appro
+ 
+ draw_polygon :: proc(verts:[]Vec2, scale_hint:f32, col:ThemeColor=.PRIMARY, brightness:f32=1.0) {
+ 	n := len(verts)
++	line_col := modulate(theme[col], brightness)
++	thickness := line_thickness / scale_hint
+ 	for i in 0..<n {
+-		draw_line(verts[i], verts[(i + 1) % n], scale_hint, col, brightness)
++		rl.DrawLineEx(verts[i], verts[(i + 1) % n], thickness, line_col)
+ 	}
+ }
+ 

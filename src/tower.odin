@@ -242,6 +242,7 @@ spawn_bullet :: proc(state: ^GameState, pos: Vec2, velocity: Vec2) {
 		shape = Circle{12},
 		col = .PRIMARY,
 		power = 1.0,
+		lifetime = 10,
 	})
 	play_sfx("shoot")
 }

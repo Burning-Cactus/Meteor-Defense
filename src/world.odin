@@ -33,7 +33,7 @@ game_loop :: proc(delta: f32) {
 	// TODO: Use quadtrees to make collision checks cheaper
 	for i in 0 ..< projectileCount {
 		projectile := &state.projectiles[i]
-		projectile.pos += projectile.velocity * delta
+		update_entity(projectile, delta)
 		for j in 0 ..< meteorCount {
 			meteor := &state.meteors[j]
 			if check_collision(projectile^, meteor^) {

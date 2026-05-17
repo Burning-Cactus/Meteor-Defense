@@ -55,7 +55,7 @@ reset_game :: proc() {
 			brightness = 1.0,
 		},
 		timeRemaining    = 360,
-		money            = 20,
+		money            = 200,
 		difficulty_scale = 1,
 	}
 }
@@ -93,8 +93,12 @@ draw_title_screen :: proc() {
 	}
 }
 
+performance_test :: true
 init :: proc() {
-	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT, .MSAA_4X_HINT})
+	if !performance_test {
+		rl.SetConfigFlags({.VSYNC_HINT})
+	}
+	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	//rl.SetTargetFPS(10)
 	rl.InitWindow(1280, 720, "Meteor Defense")
 	// Disable quiting with esc key.
@@ -143,12 +147,15 @@ update :: proc() {
 
 	rl.BeginTextureMode(shader_target)
 
+	// non opaque screen clear
 	afterimage_amount :: 0.65
 	curr_fps := max(cast(f32)rl.GetFPS(), 1.0)
 	wipe_opacity := cast(u8) min(255.0 * (1.0 - afterimage_amount) * 100.0 / curr_fps, 255.0)
-
 	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, wipe_opacity})
-	//rl.BeginBlendMode(.ADDITIVE) TODO: this would take some work but look nicer
+
+	if performance_test {
+		rl.DrawFPS(50,30)
+	}
 	switch currentScreen {
 	case .Title:
 		draw_title_screen()
