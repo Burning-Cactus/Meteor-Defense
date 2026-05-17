@@ -116,15 +116,18 @@ angle_diff :: proc(a, b: f32) -> f32 {
 	return diff
 }
 
-target_score :: proc(tower: ^Tower, target: Entity) -> f32 {
+target_score_direct :: proc(pos: Vec2, rot: f32, barrel_angle: f32, range: f32, aim_arc: f32, closeness_bias: f32, ahead_bias: f32, target: Entity) -> f32 {
 	if !target.alive do return 0
-	range_sq := tower.range * tower.range
-	m_local:= world_to_local(tower, target.pos)
+	range_sq := range * range
 
-	angle:=vec_angle(m_local) // 0 means straight up
-	if abs(angle) > tower.aim_arc do return 0
-	angle_from_barrel :f32 = angle - tower.barrel_angle + entity_world_rot(tower)
+	d := target.pos - pos
+	c := math.cos(-rot)
+	s := math.sin(-rot)
+	m_local := Vec2{d.x * c - d.y * s, d.x * s + d.y * c}
 
+	angle := vec_angle(m_local)
+	if abs(angle) > aim_arc do return 0
+	angle_from_barrel: f32 = angle - barrel_angle + rot
 
 	d_sq := dist_squared(m_local)
 	if d_sq > range_sq do return 0
@@ -132,27 +135,46 @@ target_score :: proc(tower: ^Tower, target: Entity) -> f32 {
 	assert(range_sq > 0.0)
 	d_sq_ratio := 1.0 - d_sq / range_sq
 	assert(d_sq_ratio >= 0 && d_sq_ratio <= 1.0)
-	angle_sq_ratio := 1.0 - sqr(angle_from_barrel) / sqr(tower.aim_arc) // we sqaure this as well just for fairness
+	angle_sq_ratio := 1.0 - sqr(angle_from_barrel) / sqr(aim_arc)
 	angle_sq_ratio = math.clamp(angle_sq_ratio, 0, 1)
 
-	return d_sq_ratio * tower.target_closeness_bias + angle_sq_ratio * tower.target_ahead_bias
+	return d_sq_ratio * closeness_bias + angle_sq_ratio * ahead_bias
+}
+
+target_score :: proc(tower: ^Tower, target: Entity) -> f32 {
+	return target_score_direct(
+		entity_world_pos(tower^), entity_world_rot(tower^), tower.barrel_angle,
+		tower.range, tower.aim_arc,
+		tower.target_closeness_bias, tower.target_ahead_bias,
+		target,
+	)
 }
 
 aim_debug :: false
-// Use the target_score function to get the best target.
-// If `best_score` == 0 then no valid target was found
-// NOTE: `target` Entity return may go out of date if not used immediately
-// Don't save it, instead, save the id and search for it later
-find_target_for_tower :: proc(tower: ^Tower, state: ^GameState) -> (target:^Entity, best_score:f32) {
-	for &m in state.meteors {
-		score := target_score(tower, m)
+
+// If `best_score` == 0 then no valid target was found.
+// NOTE: returned pointer goes stale if the meteor list is modified; save the id instead.
+find_target_direct :: proc(pos: Vec2, rot: f32, ideal_angle: f32, max_distance: f32, angle_range: f32, closeness_bias: f32, ahead_bias: f32, entities: [dynamic]$T) -> (target: ^Entity, best_score: f32) {
+	for &e in entities {
+		score := target_score_direct(pos, rot, ideal_angle, max_distance, angle_range, closeness_bias, ahead_bias, e)
 		if score > best_score {
 			best_score = score
-			target = &m
+			target = &e
 		}
 	}
 	return
 }
+
+find_target_for_tower :: proc(tower: ^Tower, state: ^GameState) -> (target: ^Entity, best_score: f32) {
+	return find_target_direct(
+		tower.bullet_origin, entity_world_rot(tower^), tower.barrel_angle,
+		tower.range, tower.aim_arc,
+		tower.target_closeness_bias, tower.target_ahead_bias,
+		state.meteors,
+	)
+}
+
+find_target :: proc {find_target_for_tower, find_target_direct}
 
 update_towers :: proc(state: ^GameState, delta: f32) {
 	towerCount := len(state.towers)
@@ -177,8 +199,7 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 
 		// Turn barrel toward target, clamped to aim_arc from base direction
 		if tower.has_target {
-			tower_pos     := entity_world_pos(tower^)
-			desired_angle := angle_facing(tower_pos, tower.target)
+			desired_angle := angle_facing(tower.bullet_origin, tower.target)
 
 			// Clamp the desired angle to within aim_arc of the base bone
 			diff_to_base    := angle_diff(desired_angle, base_angle)
@@ -202,8 +223,7 @@ update_towers :: proc(state: ^GameState, delta: f32) {
 		// Shoot when aim is within tolerance and cooldown is ready
 		tower.attack_timer += delta
 		if tower.has_target && tower.attack_timer > tower.cooldown {
-			tower_pos     := entity_world_pos(tower^)
-			desired_angle := angle_facing(tower_pos, tower.target)
+			desired_angle := angle_facing(tower.bullet_origin, tower.target)
 			if abs(angle_diff(tower.barrel_angle, desired_angle)) < tower.aim_tolerance {
 				shoot(tower, state)
 				tower.attack_timer = 0
@@ -231,7 +251,14 @@ shoot :: proc(t: ^Tower, state: ^GameState) {
 	case .CANNON:
 		spawn_bullet(state, t.bullet_origin, unit_vector(t.barrel_angle) * 1000)
 	case .LASER:
-		target, score := find_target_for_tower(t, state)
+		// We don't have raycasting yet so we have to find_target to know we're shooting at
+		// manually setting target_closeness_bias to 0 so we only consider angle
+		target, score := find_target_direct(
+		t.bullet_origin, entity_world_rot(t^), t.barrel_angle,
+		t.range, t.aim_arc,
+		0.0, t.target_ahead_bias,
+		state.meteors,
+	)
 		t.has_target = score > 0
 		if t.has_target {
 			t.target = entity_world_pos(target^)
