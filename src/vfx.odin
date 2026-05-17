@@ -71,42 +71,43 @@ draw_vfx :: proc(v: ^Vfx, state: ^GameState) {
 	}
 }
 
-spawn_vfx :: proc(type:VfxType, state: ^GameState, pos: Vec2, vfx: Vfx) {
+spawn_vfx :: proc(type:VfxType, state: ^GameState, pos: Vec2, vfx: Vfx, time_offset: f32 = 0) {
 	vfx:=vfx
 	vfx.type=type
 	vfx.draw=draw_vfx
+	vfx.age = time_offset * vfx.lifetime
 	spawn(&state.vfx, pos, vfx)
 }
 
 // BANG: circle expanding outward and decaying.
-spawn_bang :: proc(state: ^GameState, pos: Vec2, radius: f32 = 60.0, brightness:f32=6.0) {
+spawn_bang :: proc(state: ^GameState, pos: Vec2, radius: f32 = 60.0, brightness:f32=6.0, time_offset: f32 = 0, speed:f32=1.0) {
 	spawn_vfx(.BANG, state, pos, Vfx{
 		brightness=brightness,
 		shape    = Circle{radius},
-		lifetime = radius / 400.0,
-	})
+		lifetime = radius / 400.0 / speed,
+	}, time_offset)
 }
 
 // SPARK: particle flying in a straight line with a velocity-based trail.
-spawn_spark :: proc(state: ^GameState, pos: Vec2, direction:f32, speed:f32, lifetime: f32 = 0.6) {
+spawn_spark :: proc(state: ^GameState, pos: Vec2, direction:f32, speed:f32, lifetime: f32 = 0.6, time_offset: f32 = 0) {
 	spawn_vfx(.SPARK, state, pos, Vfx{
 		velocity = unit_vector(direction) * speed,
 		lifetime = lifetime,
-	})
+	}, time_offset)
 }
 
 // SPARKS: burst of sparks in random directions with randomized parameters.
-spawn_sparks :: proc(state: ^GameState, pos: Vec2, count: int = 8, speed: f32 = 200.0, lifetime: f32 = 0.6) {
+spawn_sparks :: proc(state: ^GameState, pos: Vec2, count: int = 8, speed: f32 = 200.0, lifetime: f32 = 0.6, time_offset: f32 = 0) {
 	for _ in 0..<count {
 		angle := rand.float32() * math.TAU
 		spd   := speed * (0.4 + rand.float32() * 0.8)
 		lt    := lifetime * (0.6 + rand.float32() * 0.8)
-		spawn_spark(state, pos, angle, spd, lt)
+		spawn_spark(state, pos, angle, spd, lt, time_offset)
 	}
 }
 
 // DEBRIS: a line segment with velocity and spin.
-spawn_debris :: proc(state: ^GameState, a: Vec2, b: Vec2, vel: Vec2, col: ThemeColor, lifetime: f32 = .4, brightness:f32=2.0) {
+spawn_debris :: proc(state: ^GameState, a: Vec2, b: Vec2, vel: Vec2, col: ThemeColor, lifetime: f32 = .4, brightness:f32=2.0, time_offset: f32 = 0) {
 	mid  := (a + b) / 2
 	half := (b - a) / 2
 	spawn_vfx(.DEBRIS, state, mid, Vfx{
@@ -116,12 +117,12 @@ spawn_debris :: proc(state: ^GameState, a: Vec2, b: Vec2, vel: Vec2, col: ThemeC
 		rot_speed = (rand.float32() - 0.5) * 1.1,
 		lifetime  = lifetime + (lifetime * (rand.float32() - 0.5) * 0.8),
 		line      = {-half, half},
-	})
+	}, time_offset)
 }
 
 // EXPLODED: spawns one debris piece per polygon edge, each flying away from the polygon center.
 // Expects a world-space polygon (already rotated and translated).
-spawn_exploded :: proc(state: ^GameState, poly: []Vec2, col: ThemeColor, initial_velocity:Vec2={}, impulse: f32 = 30.0, lifetime:f32=0.4, brightness:f32=2.0) {
+spawn_exploded :: proc(state: ^GameState, poly: []Vec2, col: ThemeColor, initial_velocity:Vec2={}, impulse: f32 = 30.0, lifetime:f32=0.4, brightness:f32=2.0, time_offset: f32 = 0) {
 	center: Vec2
 	for v in poly do center += v
 	center /= f32(len(poly))
@@ -131,15 +132,14 @@ spawn_exploded :: proc(state: ^GameState, poly: []Vec2, col: ThemeColor, initial
 		b   := poly[(i+1) % n]
 		mid := (a + b) / 2
 		vel := get_normalized_vector_facing_target(center, mid) * impulse * (0.7 + rand.float32() * 0.6) + initial_velocity
-		spawn_debris(state, a, b, vel, col, lifetime, brightness)
+		spawn_debris(state, a, b, vel, col, lifetime, brightness, time_offset)
 	}
 }
 
-spawn_laser_pulse ::proc(state:^GameState, start:Vec2, end:Vec2, lifetime:f32=0.4, brightness:f32=2.0) {
+spawn_laser_pulse ::proc(state:^GameState, start:Vec2, end:Vec2, lifetime:f32=0.4, brightness:f32=2.0, time_offset: f32 = 0) {
 	spawn_vfx(.LASER, state, start, Vfx{
 		brightness=brightness,
 		line = {{}, end - start},
 		lifetime=lifetime,
-	})
-
+	}, time_offset)
 }

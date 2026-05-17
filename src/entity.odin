@@ -105,11 +105,11 @@ entity_bounds :: proc(e: Entity) -> Vec2 {
 		max_x, max_y, min_x, min_y: f32
 		for p in shape.vertices {
 			if p.x > max_x do max_x = p.x
-			if p.y > max_y do min_x = p.y
+			if p.y > max_y do min_y = p.y
 			if p.x < min_x do min_x = p.x
 			if p.y < min_y do min_y = p.y
 		}
-		return {max_x - min_x, max_y * min_y}
+		return {max_x - min_x, max_y - min_y}
 	case Circle:
 		x := shape.radius * 2.0
 		return {x, x}

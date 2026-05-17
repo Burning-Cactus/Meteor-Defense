@@ -47,6 +47,7 @@ draw_comet_heart :: proc(comet: ^Entity, state: ^GameState) {
 }
 
 hurt_comet :: proc(dmg:f32) {
+	if !state.comet.alive do return
 	dmg:=dmg
 	for dmg>0.5 {
 		hurt_comet(0.5)
@@ -65,11 +66,17 @@ hurt_comet :: proc(dmg:f32) {
 	}
 	state.comet.hp -= dmg
 	if state.comet.hp <= 0 {
+		state.comet.alive = false
+		p, ok := state.comet.shape.(Polygon)
+		if ok do spawn_exploded(&state, p.vertices, state.comet.col, {}, 60, 0.6, 1.0)
+		spawn_bang(&state, state.comet.pos, entity_size(state.comet) * 3, 0.5, 0.2, 0.5)
+		spawn_bang(&state, state.comet.pos, entity_size(state.comet) * 3, 1.0, 0, 0.3)
 		game_over()
 	}
 }
 
 draw_comet :: proc(comet: ^Entity, state: ^GameState) {
+	if !comet.alive do return
 	e := comet^
 	e.hp=e.max_hp // HACK to override damage flashing
 	draw_entity(&e, state)

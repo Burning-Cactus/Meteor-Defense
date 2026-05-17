@@ -175,3 +175,7 @@ vary :: proc(f:f32, variability:f32) -> f32 {
 random_vector :: proc() -> Vec2{
 	return Vec2{rand.float32() * 2 -1, rand.float32() * 2 -1}
 }
+
+percent_chance :: proc(percent:f32) -> bool {
+	return rand.float32() * 100 < percent
+}

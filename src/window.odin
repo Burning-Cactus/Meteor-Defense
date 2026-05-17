@@ -62,6 +62,7 @@ reset_game :: proc() {
 		comet = Entity{
 			label      = "comet",
 			hp         = 5.0,
+			alive = true,
 			max_hp     = 5.0,
 			shape      = Polygon{pentagon},
 			brightness = 1.0,
@@ -198,7 +199,6 @@ update :: proc() {
 	case .Title:
 		draw_title_screen()
 	case .Game:
-		draw_tower_toolbar()
 
 		// pause
 		if rl.IsKeyPressed(.ESCAPE) {
@@ -227,6 +227,8 @@ update :: proc() {
 			transition_to(.Game)
 		}
 		handle_camera_move(delta)
+
+		draw_tower_toolbar()
 
 		rl.BeginMode2D(camera)
 		draw_game_screen(&state)
