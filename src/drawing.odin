@@ -123,12 +123,9 @@ draw_line :: proc(start:Vec2, end:Vec2, scale_hint:f32, col:ThemeColor=.PRIMARY,
 
 draw_circle :: proc(pos:Vec2, radius:f32, scale_hint:f32, col:ThemeColor=.PRIMARY, brightness:f32 = 1.0) {
 	if do_culling {
-		sw := f32(rl.GetScreenWidth())
-		sh := f32(rl.GetScreenHeight())
-		tl := rl.GetScreenToWorld2D({0, 0}, camera)
-		br := rl.GetScreenToWorld2D({sw, sh}, camera)
-		if pos.x + radius < tl.x || pos.x - radius > br.x ||
-		   pos.y + radius < tl.y || pos.y - radius > br.y {
+		start, end := get_frustum()
+		if pos.x + radius < start.x || pos.x - radius > end.x ||
+		   pos.y + radius < start.y || pos.y - radius > end.y {
 			return
 		}
 	}

@@ -27,6 +27,7 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	projectiles: [dynamic]Entity,
 	vfx: [dynamic]Vfx,
 	comet: Entity,
+	comet_velocity: Vec2, //purely cosmetic
 	highlighted_tower: ^Tower,
 
 	gameTime: f64,
@@ -71,6 +72,7 @@ reset_game :: proc() {
 		timeScale        = 1,
 		max_zoom         = 2,
 	}
+	init_background()
 	camera.offset = Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
 	camera.target = state.player.pos
 	camera.zoom = 4.0
@@ -86,6 +88,14 @@ pan_to_new_window_size :: proc() {
 	delta := curr_size - prev_window_size
 	camera.target -= delta * (0.5 / camera.zoom)
 	prev_window_size = curr_size
+}
+
+get_frustum :: proc() -> (start:Vec2, end:Vec2) {
+	sw := f32(rl.GetScreenWidth())
+	sh := f32(rl.GetScreenHeight())
+	start = rl.GetScreenToWorld2D({0, 0}, camera)
+	end = rl.GetScreenToWorld2D({sw, sh}, camera)
+	return
 }
 
 draw_title_screen :: proc() {

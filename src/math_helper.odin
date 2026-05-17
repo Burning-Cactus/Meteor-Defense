@@ -171,3 +171,7 @@ closest_point_on_segment :: proc(point, start, end: Vec2) -> Vec2 {
 vary :: proc(f:f32, variability:f32) -> f32 {
 	return f + f * (rand.float32() *2 - 1) * variability
 }
+
+random_vector :: proc() -> Vec2{
+	return Vec2{rand.float32() * 2 -1, rand.float32() * 2 -1}
+}

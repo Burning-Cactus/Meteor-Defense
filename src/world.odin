@@ -76,6 +76,41 @@ draw_comet :: proc(comet: ^Entity, state: ^GameState) {
 	draw_comet_heart(comet, state)
 }
 
+BackgroundStar :: struct {
+	pos:Vec2,
+	distance:f32,
+}
+background_stars: [1024]BackgroundStar
+background_size :: 10000
+init_background ::proc(){
+	for _, i in background_stars {
+		background_stars[i].pos = random_vector() * background_size/2
+		background_stars[i].distance = vary(200, .8)
+	}
+}
+update_background ::proc(delta:f32) {
+	for &s in background_stars{
+		s.pos -= state.comet_velocity * delta / s.distance
+
+		start, end := get_frustum()
+		margin :: 10
+		start.x -= margin * camera.zoom
+		start.y -= margin * camera.zoom
+		end.x -= margin * camera.zoom
+		end.y -= margin * camera.zoom
+		if s.pos.x < start.x do s.pos.x += background_size
+		if s.pos.y < start.y do s.pos.y += background_size
+		if s.pos.x > end.x do s.pos.x -= background_size
+		if s.pos.y > end.y do s.pos.y -= background_size
+	}
+}
+draw_background ::proc() {
+	for s in background_stars{
+		brightness := 50* camera.zoom / s.distance
+		if brightness > .1 do draw_dot(s.pos, state.scale_hint, .PRIMARY, brightness)
+	}
+
+}
 // I'm thinking particles can be handled later with an arena.
 game_loop :: proc(delta: f32) {
 	if state.buildMode {
@@ -83,6 +118,7 @@ game_loop :: proc(delta: f32) {
 	}
 
 	handle_spawns(&state, delta)
+	state.comet_velocity = {1200, -8000}
 
 	state.comet.rot += 0.1 * delta
 
@@ -110,6 +146,7 @@ game_loop :: proc(delta: f32) {
 	update_meteors(&state, delta)
 	update_towers(&state, delta)
 	update_vfx(&state, delta)
+	update_background(delta)
 
 	remove_dead(&state.meteors, &state)
 	// TODO: Define the boundaries of the map, and kill the bullets when they exit.
@@ -136,6 +173,7 @@ handle_input :: proc() {
 }
 
 draw_game_screen :: proc(state: ^GameState) {
+	draw_background()
 	draw_comet(&state.comet, state)
 	draw_entity(&state.player, state)
 
