@@ -64,6 +64,9 @@ hurt_comet :: proc(dmg:f32) {
 		spawn_exploded(&state, seg[:], .BLUE, seg[1], 16.0, 0.2, 3.0)
 	}
 	state.comet.hp -= dmg
+	if state.comet.hp <= 0 {
+		game_over()
+	}
 }
 
 draw_comet :: proc(comet: ^Entity, state: ^GameState) {

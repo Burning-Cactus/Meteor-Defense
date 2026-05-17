@@ -14,6 +14,12 @@ paused: bool
 camera: rl.Camera2D
 prev_window_size: Vec2
 
+TRANSITION_SPEED:f32:1/ 	0.3//seconds
+ZOOMOUT_SPEED:f32:2/    	1//seconds
+GAME_OVER_SLOMO_TIME:f32:	3// seconds to reach zero time scale
+
+EndReason :: enum { None, Victory, Defeat }
+
 GameState :: struct { //TODO: split some of this into new WorldState
 	player: Entity,
 	meteors: [dynamic]Meteor,
@@ -26,12 +32,16 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	gameTime: f64,
 	timeRemaining: f32,
 	gameOver:      bool,
+	endReason:     EndReason,
+	endTimer:      f32,
+	timeScale:     f32,
 	money:         u32,
 	buildMode:     bool,
 	cursor:        Vec2,
 	scale_hint:    f32,
 
 	difficulty_scale: f32,
+	max_zoom:         f32,
 }
 
 state:GameState
@@ -58,7 +68,17 @@ reset_game :: proc() {
 		timeRemaining    = 360,
 		money            = 200,
 		difficulty_scale = 1,
+		timeScale        = 1,
+		max_zoom         = 2,
 	}
+	camera.offset = Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
+	camera.target = state.player.pos
+	camera.zoom = 4.0
+}
+
+game_over :: proc() {
+	state.gameOver  = true
+	state.endReason = .Defeat
 }
 
 pan_to_new_window_size :: proc() {
@@ -115,18 +135,7 @@ init :: proc() {
 	init_shader()
 }
 
-update :: proc() {
-	update_music()
-	delta := rl.GetFrameTime()
-	update_transition(delta)
-	click_claimed = false
-	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
-
-	if rl.IsWindowResized() {
-		pan_to_new_window_size()
-		resize_shader()
-	}
-
+handle_camera_move ::proc(delta:f32) {
 	// Pan with middle mouse button
 	if rl.IsMouseButtonDown(.MIDDLE) {
 		mouse_delta := rl.GetMouseDelta()
@@ -135,16 +144,34 @@ update :: proc() {
 
 	// Zoom to cursor with scroll wheel
 	wheel := rl.GetMouseWheelMove()
-	if wheel != 0 {
+	if (wheel > 0 && camera.zoom <= state.max_zoom - 0.1) || wheel < 0 {
+		scale := f32(0.2) * wheel
 		mouse_world := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 		camera.offset = rl.GetMousePosition()
 		camera.target = mouse_world
-		scale := f32(0.2) * wheel
 		camera.zoom = clamp(math.exp_f32(math.ln_f32(camera.zoom) + scale), f32(0.125), f32(64.0))
 	}
 
-	state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
+	if state.max_zoom > 0 && camera.zoom > state.max_zoom {
+		camera.zoom += (state.max_zoom - camera.zoom) * ZOOMOUT_SPEED * delta
+	}
+
 	state.scale_hint = camera.zoom
+}
+
+update :: proc() {
+	update_music()
+	delta := rl.GetFrameTime()
+	update_transition(delta)
+	click_claimed = false
+	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
+
+	if rl.IsWindowResized() {
+		resize_shader()
+		pan_to_new_window_size()
+	}
+
+	state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 
 	rl.BeginTextureMode(shader_target)
 
@@ -167,23 +194,36 @@ update :: proc() {
 		if rl.IsKeyPressed(.ESCAPE) {
 			paused = !paused
 		}
-		if !paused && !state.gameOver {
-			game_loop(delta)
-			state.gameTime += f64(delta)
-			state.timeRemaining -= delta
-			if state.timeRemaining <= 0 {
-				state.gameOver = true
+		if !paused {
+			if state.gameOver {
+				state.timeScale = max(state.timeScale - delta / GAME_OVER_SLOMO_TIME, 0)
+				state.endTimer += delta
+				if state.endTimer >= 4.0 {
+					transition_to(.Game)
+				}
+			}
+			scaled_delta := delta * state.timeScale
+			game_loop(scaled_delta)
+			state.gameTime += f64(scaled_delta)
+			if !state.gameOver {
+				state.timeRemaining -= delta
+				if state.timeRemaining <= 0 {
+					state.gameOver  = true
+					state.endReason = .Victory
+				}
 			}
 		}
 		if rl.IsKeyPressed(.R) {
 			transition_to(.Game)
 		}
+		handle_camera_move(delta)
 
 		rl.BeginMode2D(camera)
 		draw_game_screen(&state)
 		rl.EndMode2D()
 		if state.gameOver {
-			rl.DrawText("VICTORY", screenSize.x / 2 - 240, screenSize.y / 2 - 50, 64, rl.LIGHTGRAY)
+			msg: cstring = "VICTORY" if state.endReason == .Victory else "GAME OVER"
+			rl.DrawText(msg, screenSize.x / 2 - 240, screenSize.y / 2 - 50, 64, rl.LIGHTGRAY)
 		} else {
 			rl.DrawText(
 				rl.TextFormat("Time left: %.0f seconds", state.timeRemaining),
@@ -195,19 +235,13 @@ update :: proc() {
 			rl.DrawText(rl.TextFormat("$%d", state.money), screenSize.x - 240, 40, 20, rl.WHITE)
 		}
 	case .Draw:
+		handle_camera_move(delta)
 		draw_canvas_toolbar()
 		rl.BeginMode2D(camera)
 		canvas_loop(delta)
 		rl.EndMode2D()
-
-		/*if i:= select_tool(canvas_tools[:]); i>=0 {
-			selected_tool = &canvas_tools[i]
-		}
-		draw_tools(canvas_tools[:], {10, 10}, .TOP_LEFT, .RIGHT)
-		*/
 	}
 	rl.EndTextureMode()
-	//rl.EndBlendMode()
 
 	rl.BeginDrawing()
 	defer free_all(context.temp_allocator)
@@ -224,7 +258,6 @@ _transition_phase:  TransitionPhase
 _transition_target: Screen
 _transition_alpha:  f32
 
-TRANSITION_SPEED:f32:1/  0.1//seconds
 
 transition_to :: proc(target: Screen) {
 	queue_music_restart()
@@ -275,7 +308,6 @@ draw_transition_curtain :: proc() {
 // `rl.SetWindowSize` call if you don't want a resizable game.
 parent_window_size_changed :: proc(w, h: int) {
 	rl.SetWindowSize(c.int(w), c.int(h))
-	pan_to_new_window_size()
 }
 
 should_run :: proc() -> bool {
