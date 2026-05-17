@@ -4,10 +4,13 @@ import "core:fmt"
 import rl "vendor:raylib"
 
 sfx_files := #load_directory("../assets/sfx")
+music_mp3_data := #load("../assets/music.mp3")
 
+music_volume: f32 = 1.0
 sfx_volume: f32 = 1.0
 
 _sfx_map: map[string]rl.Sound
+_music: rl.Music
 
 SFXSettings :: struct {pitch, volume, pitch_variation, volume_variation : f32}
 default_sfx_settings:SFXSettings = {1.0, 1.0, 0, 0}
@@ -21,9 +24,19 @@ init_sfx :: proc() {
 		_sfx_map[name] = rl.LoadSoundFromWave(wave)
 		rl.UnloadWave(wave)
 	}
+
+	_music = rl.LoadMusicStreamFromMemory(".mp3", raw_data(music_mp3_data), i32(len(music_mp3_data)))
+	_music.looping = true
+	rl.SetMusicVolume(_music, music_volume)
+	rl.PlayMusicStream(_music)
+}
+
+update_music :: proc() {
+	rl.UpdateMusicStream(_music)
 }
 
 shutdown_sfx :: proc() {
+	rl.UnloadMusicStream(_music)
 	for _, sound in _sfx_map {
 		rl.UnloadSound(sound)
 	}

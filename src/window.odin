@@ -104,6 +104,7 @@ init :: proc() {
 }
 
 update :: proc() {
+	update_music()
 	click_claimed = false
 	delta := rl.GetFrameTime()
 	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
