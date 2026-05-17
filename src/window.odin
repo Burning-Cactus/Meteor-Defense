@@ -6,7 +6,7 @@ import "core:math"
 import rl "vendor:raylib"
 
 Screen :: enum{Title, Game, Draw}
-currentScreen := Screen.Game
+currentScreen := Screen.Title
 
 run := true
 paused: bool
@@ -34,24 +34,30 @@ GameState :: struct { //TODO: split some of this into new WorldState
 	difficulty_scale: f32,
 }
 
-state: GameState = {
-	player = Entity{
-		label = "jelly",
-		pos = {200, -100},
-		shape = Rect{32},
-		alive = true,
-		brightness = 1.8,
-//		draw = draw_player,
-	},
-	comet = Entity{
-		label = "comet",
-		hp = 20.0,
-		shape = Polygon{pentagon},
-		brightness = 1.0,
-	},
-	timeRemaining = 60,
-	money = 20,
-	difficulty_scale = 1,
+state:GameState
+reset_game :: proc() {
+	delete(state.meteors)
+	delete(state.towers)
+	delete(state.projectiles)
+	delete(state.vfx)
+	state = {
+		player = Entity{
+			label      = "jelly",
+			pos        = {200, -100},
+			shape      = Rect{32},
+			alive      = true,
+			brightness = 1.8,
+		},
+		comet = Entity{
+			label      = "comet",
+			hp         = 20.0,
+			shape      = Polygon{pentagon},
+			brightness = 1.0,
+		},
+		timeRemaining    = 360,
+		money            = 20,
+		difficulty_scale = 1,
+	}
 }
 
 pan_to_new_window_size :: proc() {
@@ -83,7 +89,7 @@ draw_title_screen :: proc() {
 	)
 	rl.GuiLabel({midPoint.x - 280, midPoint.y - 90, 560, 20}, "Welcome to JellyJam!")
 	if rl.GuiButton({midPoint.x - 280, midPoint.y - 60, 560, 60}, "Start game") {
-		start_game()
+		transition_to(.Game)
 	}
 }
 
@@ -98,6 +104,7 @@ init :: proc() {
 	pan_to_new_window_size()
 
 	rl.InitAudioDevice()
+	set_screen(currentScreen)
 	init_sfx()
 	init_meteor_polygons()
 	init_shader()
@@ -105,8 +112,9 @@ init :: proc() {
 
 update :: proc() {
 	update_music()
-	click_claimed = false
 	delta := rl.GetFrameTime()
+	update_transition(delta)
+	click_claimed = false
 	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
 
 	if rl.IsWindowResized() {
@@ -159,6 +167,9 @@ update :: proc() {
 				state.gameOver = true
 			}
 		}
+		if rl.IsKeyPressed(.R) {
+			transition_to(.Game)
+		}
 
 		rl.BeginMode2D(camera)
 		draw_game_screen(&state)
@@ -201,11 +212,61 @@ update :: proc() {
 	defer rl.EndDrawing()
 	draw_shader()
 	draw_shader_debug()
+	draw_transition_curtain()
 }
 
 
-start_game :: proc() {
-	currentScreen = .Game
+TransitionPhase :: enum { Idle, FadeIn, FadeOut }
+
+_transition_phase:  TransitionPhase
+_transition_target: Screen
+_transition_alpha:  f32
+
+TRANSITION_SPEED:f32:1/  0.1//seconds
+
+transition_to :: proc(target: Screen) {
+	queue_music_restart()
+	if _transition_phase != .Idle do return
+	_transition_target = target
+	_transition_phase  = .FadeIn
+}
+
+set_screen :: proc(target: Screen) {
+	defer currentScreen = target
+	switch _transition_target {
+	case .Game:
+		reset_game()
+		clear_music_loop_points()
+	case .Title:
+		set_music_loop_points(3,7)
+	case .Draw:
+	}
+
+}
+
+update_transition :: proc(delta: f32) {
+	switch _transition_phase {
+	case .Idle:
+	case .FadeIn:
+		_transition_alpha += TRANSITION_SPEED * delta
+		if _transition_alpha >= 1.0 {
+			_transition_alpha = 1.0
+			_transition_phase = .FadeOut
+			set_screen(_transition_target)
+		}
+	case .FadeOut:
+		_transition_alpha -= TRANSITION_SPEED * delta
+		if _transition_alpha <= 0.0 {
+			_transition_alpha = 0.0
+			_transition_phase = .Idle
+		}
+	}
+}
+
+draw_transition_curtain :: proc() {
+	if _transition_phase == .Idle do return
+	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
+	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, u8(_transition_alpha * 255)})
 }
 
 // In a web build, this is called when browser changes size. Remove the
