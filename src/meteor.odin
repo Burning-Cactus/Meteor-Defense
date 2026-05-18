@@ -129,10 +129,6 @@ spawn_timer: f32
 spawn_radius: f32 = 2000
 
 handle_spawns :: proc(state: ^GameState, delta: f32) {
-	if state.gameTime >= 90 && state.gameTime < 120 {
-		star_storm(state, delta)
-		return
-	}
 	spawn_timer += state.difficulty_scale * delta
 	if spawn_timer >= spawn_cooldown {
 		// We'll determine the spawn position in polar coordinates, then convert to cartesian.
@@ -247,18 +243,6 @@ spawn_group :: proc(
 			temp_pos += p
 			spawn_meteor(state, temp_pos, type)
 		}
-	}
-}
-
-star_storm :: proc(state: ^GameState, delta: f32) {
-	spawn_pos := normalize(state.comet_velocity) * 4000
-	spawn_timer += state.difficulty_scale * delta
-	if spawn_timer >= 2.0 {
-		spawn_count := rand.int31_max(10) + 1
-		type := choose_meteor_type(state)
-		spawn_meteor(state, spawn_pos, type)
-
-		spawn_timer -= 2.0
 	}
 }
 
