@@ -3,7 +3,8 @@ import "core:math"
 import "core:math/rand"
 import rl "vendor:raylib"
 
-line_thickness :: 4.0
+BASE_LINE_THICKNESS:f32: 4.0
+line_thickness: f32 = BASE_LINE_THICKNESS
 line_resolution ::  48/*lines per 100 pixels*/ / 100.0
 
 Drawshape_Type :: enum {
@@ -35,7 +36,8 @@ ThemeColor :: enum {
 	DEBUG,
 }
 
-draw_opacity :u8: 40
+BASE_DRAW_OPACITY:f32: 40 // calibrated at 100 fps
+draw_opacity: f32 = BASE_DRAW_OPACITY
 theme := [ThemeColor][3]u8 {
 	.FILL =   	{0,    0,    0,  },
 	.PRIMARY =	{0xff, 0xff, 0xff},
@@ -52,7 +54,7 @@ modulate_themecolor :: proc(col: ThemeColor, brightness:f32=1.0) -> rl.Color {
 	return modulate_rgb(theme[col], brightness)
 }
 modulate_rgb :: proc(rgb: [3]u8, brightness:f32) -> rl.Color {
-	alpha := cast(u8) (cast(f32)draw_opacity * brightness)
+	alpha := cast(u8)(draw_opacity * brightness)
 	return {rgb.r, rgb.g, rgb.b, alpha}
 }
 modulate :: proc{modulate_themecolor, modulate_rgb}
