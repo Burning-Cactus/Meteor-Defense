@@ -2,6 +2,8 @@ package game
 
 import rl "vendor:raylib"
 
+// --- Drag ---
+
 Drag :: struct{
 	button:union {rl.KeyboardKey, rl.MouseButton},
 	start, end: Vec2,
@@ -38,13 +40,13 @@ drag_ended ::proc(d:^Drag) -> bool {
 	return out
 }
 
+// --- General Util ---
+
 DrawDirection :: enum {
 	TOP_LEFT, TOP, TOP_RIGHT,
 	LEFT, CENTER, RIGHT,
 	BOTTOM_LEFT, BOTTOM, BOTTOM_RIGHT,
 }
-
-tool_slot_size :: f32(48)
 
 direction_offset :: proc(d: DrawDirection) -> Vec2 {
 	table := [DrawDirection]Vec2{
@@ -59,6 +61,15 @@ direction_offset :: proc(d: DrawDirection) -> Vec2 {
 		.BOTTOM_RIGHT= { 1,  1},
 	}
 	return table[d]
+}
+
+screen_size :: proc() -> (i32, i32) {
+	return rl.GetScreenWidth(), rl.GetScreenHeight()
+}
+
+screen_vec :: proc() -> Vec2 {
+	w,h := screen_size()
+	return Vec2{f32(w), f32(h)}
 }
 
 // Whether something has been clicked this frame
@@ -94,17 +105,14 @@ box_geo ::proc(start:Vec2, end:Vec2) -> (center:Vec2, size:Vec2) {
 	return
 }
 
-// use as is or as an example
-draw_tool_basic :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f32=1.0) -> bool {
-	brightness:f32= 1.0
-	if is_box_hovered(start, end, cursor) {
-		brightness = 1.8
-	}
-	draw_box(start, end, scale_hint, .PRIMARY, brightness)
-	_, size: = box_geo(start, end)
-	x, y := vec_ints(start + size/10)
-	rl.DrawText(rl.TextFormat("%i", idx+1), x, y, 10, modulate(.PRIMARY))
-	return is_box_clicked(start, end, cursor) || get_number_pressed() == idx
+// --- General Drawing ---
+
+draw_screen_message ::proc(msg:cstring) {
+	w,h := screen_size()
+	max_width := w - min(20, w/12)
+	msg_size := min(64, max_width / i32(len(msg)))
+	actual_width := rl.MeasureText(msg, msg_size)
+	rl.DrawText(msg, (w-actual_width)/2, (h+msg_size)/2, msg_size, rl.LIGHTGRAY)
 }
 
 draw_button :: proc(pos: Vec2, size: Vec2, rot: f32, cursor: Vec2, text: cstring = "", scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) -> bool {
@@ -119,6 +127,23 @@ draw_button :: proc(pos: Vec2, size: Vec2, rot: f32, cursor: Vec2, text: cstring
 	text_w := rl.MeasureText(text, font_size)
 	rl.DrawText(text, i32(pos.x) - text_w / 2, i32(pos.y) - font_size / 2, font_size, modulate(col, b))
 	return is_box_clicked(start, end, cursor)
+}
+
+// --- Toolbar ---
+
+tool_slot_size :: f32(48)
+
+// use as is or as an example
+draw_tool_basic :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f32=1.0) -> bool {
+	brightness:f32= 1.0
+	if is_box_hovered(start, end, cursor) {
+		brightness = 1.8
+	}
+	draw_box(start, end, scale_hint, .PRIMARY, brightness)
+	_, size: = box_geo(start, end)
+	x, y := vec_ints(start + size/10)
+	rl.DrawText(rl.TextFormat("%i", idx+1), x, y, 10, modulate(.PRIMARY))
+	return is_box_clicked(start, end, cursor) || get_number_pressed() == idx
 }
 
 draw_toolbar :: proc(
