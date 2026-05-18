@@ -50,10 +50,10 @@ MeteorPreset :: struct {
 	death_sfx:                        string,
 }
 meteor_presets := [MeteorType]MeteorPreset {
-	.SHOOTING_STAR = {speed = 120, spin = 0.8, size = 16, health = 1.0, power = 0.2, reward = 1},
-	.METEOROID = {speed = 80, spin = 0.2, size = 24, health = 2.0, power = 1.0, reward = 2},
+	.SHOOTING_STAR = {speed = 145, spin = 0.8, size = 16, health = 1.0, power = 0.2, reward = 1},
+	.METEOROID = {speed = 110, spin = 0.2, size = 24, health = 2.0, power = 1.0, reward = 2},
 	.ASTEROID = {
-		speed = 40,
+		speed = 55,
 		spin = 0.1,
 		size = 128,
 		health = 12.0,
@@ -160,10 +160,10 @@ choose_meteor_type :: proc(state: ^GameState) -> MeteorType {
 }
 
 choose_formation :: proc(state: ^GameState) -> Formation {
-	wide_weight: i32 = 4
-	long_weight: i32 = 2
-	circle_weight: i32 = 3
-	erratic: i32 = 2
+	wide_weight: i32 : 4
+	long_weight: i32 : 4
+	circle_weight: i32 : 4
+	erratic: i32 : 2
 	r := rand.int31_max(wide_weight + long_weight + circle_weight + erratic)
 	if r < wide_weight do return Formation.WIDE
 	if r < wide_weight + long_weight do return Formation.LONG
@@ -206,7 +206,6 @@ spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 	}
 }
 
-
 spawn_group :: proc(
 	state: ^GameState,
 	spawn_pos: Vec2,
@@ -223,14 +222,13 @@ spawn_group :: proc(
 	slice_rot_mat: matrix[2, 2]f32
 	p: Vec2
 
-	f := Formation.CIRCLE
-	if f == .CIRCLE {
+	if formation == .CIRCLE {
 		circle_slice_size := (math.PI * 2) / f32(spawn_count)
 		slice_rot_mat = calculate_rotation_matrix(circle_slice_size)
 		p = Vec2{(size + 10) * 2, 0}
 	}
 	for i in 0 ..< spawn_count {
-		switch f {
+		switch formation {
 		case .WIDE:
 			p = Vec2{0, f32(i) * (size * 1.5)} * facing_rot_mat
 			temp_pos += p

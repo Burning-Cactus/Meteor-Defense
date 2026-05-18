@@ -94,7 +94,7 @@ reset_game :: proc() {
 		money = 200,
 		difficulty_scale = 1,
 		timeScale = 1,
-		max_zoom = 2,
+		max_zoom = 0.45,
 	}
 	init_background()
 	camera.offset = Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
@@ -167,7 +167,7 @@ init :: proc() {
 	// Disable quiting with esc key.
 	rl.SetExitKey(.KEY_NULL)
 
-	camera.zoom = 1.0
+	camera.zoom = 0.5
 	pan_to_new_window_size()
 
 	rl.InitAudioDevice()
