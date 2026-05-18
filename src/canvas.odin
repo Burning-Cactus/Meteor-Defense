@@ -1,7 +1,7 @@
 package game
 
 import "core:math"
-import "core:os"
+import "utils"
 import rl "vendor:raylib"
 
 HandleMode :: enum {
@@ -197,11 +197,11 @@ BONE_NAMES := [10]string {
 	"lower_leg_l",
 }
 
-bone_groups:        [10]^DrawshapeGroup
-active_bone_group:  ^DrawshapeGroup
-canvas_skeleton:    Skeleton
+bone_groups: [10]^DrawshapeGroup
+active_bone_group: ^DrawshapeGroup
+canvas_skeleton: Skeleton
 canvas_initialized: bool
-selected_color:     ThemeColor = .PRIMARY
+selected_color: ThemeColor = .PRIMARY
 
 NUM_THEME_COLORS :: int(max(ThemeColor)) + 1
 
@@ -247,8 +247,8 @@ init_canvas :: proc() {
 		append(&root.contents, ptr)
 	}
 
-	data, read_err := os.read_entire_file_from_path("assets/shapes.json", context.allocator)
-	if read_err != nil do return
+	data, success := utils.read_entire_file("assets/shapes.json", context.allocator)
+	if !success do return
 	defer delete(data)
 
 	loaded_d, decoded := drawable_decode(data)
@@ -273,7 +273,11 @@ CanvasTool :: struct {
 	drag_handler: proc(d: Drag) -> Drawable,
 }
 shape_tool_drag_handler :: proc(d: Drag, shape: Drawshape_Type) -> Drawable {
-	out := DrawshapePro{drawshape = {shape, d.start, d.end}, col = selected_color, brightness = 1.0}
+	out := DrawshapePro {
+		drawshape  = {shape, d.start, d.end},
+		col        = selected_color,
+		brightness = 1.0,
+	}
 	draw_shape(out, state.scale_hint)
 	return out
 }
@@ -338,7 +342,7 @@ canvas_loop :: proc(delta: f32) {
 			append(&selected_shapes, highlighted_ref)
 		}
 		shape_drag.start = state.cursor
-		shape_drag.end   = state.cursor
+		shape_drag.end = state.cursor
 	}
 
 	if shape_drag.active {
@@ -373,7 +377,7 @@ canvas_loop :: proc(delta: f32) {
 	// use tool
 	drag_handler := canvas_tools[selected_tool_idx].drag_handler
 	if !click_claimed && drag_started(&draw_drag) {
-		click_claimed   = true
+		click_claimed = true
 		draw_drag.start = state.cursor
 		active_bone_group = nearest_bone_group(state.cursor)
 	}
@@ -391,14 +395,17 @@ canvas_loop :: proc(delta: f32) {
 		selected_color = ThemeColor((int(selected_color) + 1) % NUM_THEME_COLORS)
 	}
 	if rl.IsKeyPressed(.LEFT_BRACKET) {
-		selected_color = ThemeColor((int(selected_color) - 1 + NUM_THEME_COLORS) % NUM_THEME_COLORS)
+		selected_color = ThemeColor(
+			(int(selected_color) - 1 + NUM_THEME_COLORS) % NUM_THEME_COLORS,
+		)
 	}
 
 	if rl.IsKeyPressed(.P) {
 		data, err := drawable_encode(&root)
 		if err == nil {
-			_ = os.write_entire_file("../../assets/shapes.json", data)
+			_ = utils.write_entire_file("../../assets/shapes.json", data)
 			delete(data)
 		}
 	}
 }
+
