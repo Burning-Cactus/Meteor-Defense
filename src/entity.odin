@@ -1,10 +1,10 @@
 // Things that live in the game world which, move, collide, or are drawn.
 // Includes abstract definitions and more concrete specific entities; how they're drawn, and how they behave
 package game
-import rl "vendor:raylib"
+import "core:fmt"
 import "core:math"
 import "core:math/rand"
-import "core:fmt"
+import rl "vendor:raylib"
 
 Rect :: struct {
 	size: Vec2,
@@ -16,14 +16,8 @@ Polygon :: struct {
 	vertices: []Vec2,
 }
 
-one_fifth: f32 : math.PI * 2 / 5
-
-pentagon := []Vec2{
-	{200 * math.cos(f32(0)), 200 * math.sin(f32(0))},
-	{200 * math.cos(one_fifth), 200 * math.sin(one_fifth)},
-	{200 * math.cos(one_fifth * 2), 200 * math.sin(one_fifth * 2)},
-	{200 * math.cos(one_fifth * 3), 200 * math.sin(one_fifth * 3)},
-	{200 * math.cos(one_fifth * 4), 200 * math.sin(one_fifth * 4)},
+generate_comet_shape :: proc() -> []Vec2 {
+	return random_convex_polygon({0, 0}, 0, 24, 700, 1200, 295, context.allocator)
 }
 
 Shape :: union {
@@ -33,35 +27,32 @@ Shape :: union {
 }
 
 Entity :: struct {
-	id:        u64,
-	label:     string,
-	pos:       Vec2,
-	velocity:  Vec2,
-	rot:       f32,
-	rot_speed: f32,
-	mass:f32,
-	shape: Shape,
-	parent: ^Entity,
-
-	age: f32,
-	lifetime: f32,
-	hp: f32,
-	max_hp: f32,
-	power: f32,
-	col: ThemeColor,
-	brightness : f32,
-
-	draw: proc(e: ^Entity, state: ^GameState),
-	on_death: proc(e: ^Entity, state: ^GameState),
-
-	alive: bool,
-	value: u32,
+	id:         u64,
+	label:      string,
+	pos:        Vec2,
+	velocity:   Vec2,
+	rot:        f32,
+	rot_speed:  f32,
+	mass:       f32,
+	shape:      Shape,
+	parent:     ^Entity,
+	age:        f32,
+	lifetime:   f32,
+	hp:         f32,
+	max_hp:     f32,
+	power:      f32,
+	col:        ThemeColor,
+	brightness: f32,
+	draw:       proc(e: ^Entity, state: ^GameState),
+	on_death:   proc(e: ^Entity, state: ^GameState),
+	alive:      bool,
+	value:      u32,
 }
 
 // --- Utils ---
 
 next_entity_id: u64
-get_new_entity_id ::proc() -> u64 {
+get_new_entity_id :: proc() -> u64 {
 	defer next_entity_id += 1
 	return next_entity_id
 }
@@ -131,7 +122,7 @@ entity_size :: proc(e: Entity) -> f32 {
 	return 0
 }
 
-entity_dist_squared :: proc(e: Entity, p:Vec2) ->f32 {
+entity_dist_squared :: proc(e: Entity, p: Vec2) -> f32 {
 	return dist_squared(entity_world_pos(e), p)
 }
 
@@ -170,16 +161,16 @@ attach_to_parent :: proc(child: ^Entity, parent: ^Entity) {
 
 // --- Health and Damage ---
 
-entity_mass ::proc(e: Entity) -> f32{
+entity_mass :: proc(e: Entity) -> f32 {
 	if e.mass > 0 do return e.mass
-	r:= entity_bounds(e)
+	r := entity_bounds(e)
 	return max(r.x * r.y, 1.0)
 }
 
-hurt_entity_directly :: proc(e: ^Entity, damage:f32, impulse:Vec2={}) -> (score_claimed:u32) {
+hurt_entity_directly :: proc(e: ^Entity, damage: f32, impulse: Vec2 = {}) -> (score_claimed: u32) {
 	e.hp -= damage
-	if imp_sqr:=dist_squared(impulse); imp_sqr > 0 {
-		mass:= entity_mass(e^)
+	if imp_sqr := dist_squared(impulse); imp_sqr > 0 {
+		mass := entity_mass(e^)
 		e.velocity += impulse / mass
 		rot_change := rand.float32() * 18 - 9
 		e.rot_speed += rot_change / mass
@@ -191,12 +182,18 @@ hurt_entity_directly :: proc(e: ^Entity, damage:f32, impulse:Vec2={}) -> (score_
 	return
 }
 
-hurt_entity_with_entity :: proc(attacker: Entity, target: ^Entity) -> (score_claimed:u32) {
-	return hurt_entity_directly(target, attacker.power, attacker.velocity * entity_mass(attacker) * 0.5)
+hurt_entity_with_entity :: proc(attacker: Entity, target: ^Entity) -> (score_claimed: u32) {
+	return hurt_entity_directly(
+		target,
+		attacker.power,
+		attacker.velocity * entity_mass(attacker) * 0.5,
+	)
 }
 
-hurt_entity :: proc {hurt_entity_directly, hurt_entity_with_entity}
-
+hurt_entity :: proc {
+	hurt_entity_directly,
+	hurt_entity_with_entity,
+}
 
 
 // --- Collision ---
@@ -218,7 +215,12 @@ find_closest_vertex :: proc(pos: Vec2, vertices: []Vec2) -> Vec2 {
 	return closest_vertex
 }
 
-check_collision_polygon_circle :: proc(vertices1: []Vec2, a_rot: f32, b_pos: Vec2, b_shape: Circle) -> bool {
+check_collision_polygon_circle :: proc(
+	vertices1: []Vec2,
+	a_rot: f32,
+	b_pos: Vec2,
+	b_shape: Circle,
+) -> bool {
 	// The comparison from the circle's side is just the axis connecting the center of the circle and the nearest vertex of the polygon.
 	{
 		closest_vertex := find_closest_vertex(b_pos, vertices1)
@@ -305,7 +307,12 @@ check_collision :: proc(a: Entity, b: Entity) -> bool {
 		case Rect, Polygon:
 			return check_collision_sat(b, a)
 		case Circle:
-			return rl.CheckCollisionCircles(entity_world_pos(a), a_shape.radius, entity_world_pos(b), b_shape.radius)
+			return rl.CheckCollisionCircles(
+				entity_world_pos(a),
+				a_shape.radius,
+				entity_world_pos(b),
+				b_shape.radius,
+			)
 		}
 	}
 	return false // One of the Entities has no shape?
@@ -322,14 +329,13 @@ check_collision_any :: proc(a: Entity, list: [dynamic]$T) -> bool {
 
 find_intersection_point_on_rect :: proc(start_pos: Vec2, r: Rect) -> (pos: Vec2, normal: Vec2) {
 	r_start := -r.size / 2
-	r_end   :=  r.size / 2
+	r_end := r.size / 2
 
-	outside := (
-		start_pos.x < r_start.x ||
-		start_pos.x > r_end.x ||
-		start_pos.y < r_start.y ||
-		start_pos.y > r_end.y
-	)
+	outside :=
+		(start_pos.x < r_start.x ||
+			start_pos.x > r_end.x ||
+			start_pos.y < r_start.y ||
+			start_pos.y > r_end.y)
 	if outside {
 		pos = {
 			math.clamp(start_pos.x, r_start.x, r_end.x),
@@ -352,16 +358,28 @@ find_intersection_point_on_rect :: proc(start_pos: Vec2, r: Rect) -> (pos: Vec2,
 	return
 }
 
-find_intersection_point_on_circle :: proc(start_pos: Vec2, c:Circle) -> (pos:Vec2, normal:Vec2) {
+find_intersection_point_on_circle :: proc(
+	start_pos: Vec2,
+	c: Circle,
+) -> (
+	pos: Vec2,
+	normal: Vec2,
+) {
 	normal = normalize(start_pos)
 	pos = normal * c.radius
 	return
 }
 
-find_intersection_point_on_polygon :: proc(start_pos: Vec2, poly: Polygon) -> (pos: Vec2, normal: Vec2) {
+find_intersection_point_on_polygon :: proc(
+	start_pos: Vec2,
+	poly: Polygon,
+) -> (
+	pos: Vec2,
+	normal: Vec2,
+) {
 	n := len(poly.vertices)
 	best_u: f32 = math.F32_MAX
-	for i in 0..<n {
+	for i in 0 ..< n {
 		a := poly.vertices[i]
 		r := poly.vertices[(i + 1) % n] - a
 		// Ray from origin outward through start_pos — finds the boundary on the start_pos
@@ -375,17 +393,23 @@ find_intersection_point_on_polygon :: proc(start_pos: Vec2, poly: Polygon) -> (p
 	return
 }
 
-find_intersection_point_on_entity :: proc( startPos: Vec2, target: Entity) -> (pos:Vec2, normal:Vec2) {
+find_intersection_point_on_entity :: proc(
+	startPos: Vec2,
+	target: Entity,
+) -> (
+	pos: Vec2,
+	normal: Vec2,
+) {
 	local_startpos := world_to_local(target, startPos)
 
 	switch shape in target.shape {
 	case Rect:
-		pos, normal = find_intersection_point_on_rect( local_startpos, shape )
+		pos, normal = find_intersection_point_on_rect(local_startpos, shape)
 	case Polygon:
 		pos, normal = find_intersection_point_on_polygon(local_startpos, shape)
-		// Solve for scalars t and u
+	// Solve for scalars t and u
 	case Circle:
-		pos, normal = find_intersection_point_on_circle( local_startpos, shape )
+		pos, normal = find_intersection_point_on_circle(local_startpos, shape)
 	}
 	pos = local_to_world(target, pos)
 	normal = normalize(local_to_world(target, normal)) //TODO rotating would be more efficient
@@ -394,7 +418,14 @@ find_intersection_point_on_entity :: proc( startPos: Vec2, target: Entity) -> (p
 
 // --- Drawing ---
 
-draw_enity_shape :: proc(s: Shape, pos: Vec2, rot: f32, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) {
+draw_enity_shape :: proc(
+	s: Shape,
+	pos: Vec2,
+	rot: f32,
+	scale_hint: f32 = 1.0,
+	col: ThemeColor = .PRIMARY,
+	brightness: f32 = 1.0,
+) {
 	switch shape in s {
 	case Rect:
 		draw_rect(pos, shape.size, rot, scale_hint, col, brightness)
@@ -406,9 +437,9 @@ draw_enity_shape :: proc(s: Shape, pos: Vec2, rot: f32, scale_hint: f32 = 1.0, c
 }
 
 draw_entity_debug_lines :: proc(e: Entity, values: ..any) {
-	x,y := vec_ints(local_to_world(e, entity_bounds(e)))
+	x, y := vec_ints(local_to_world(e, entity_bounds(e)))
 	line_height :: 18
-	font_size   :: 18
+	font_size :: 18
 	rl.DrawText("debug info:", x, y - line_height, font_size, modulate(.DEBUG))
 	for val, i in values {
 		text := fmt.ctprintf("%f", val)
@@ -423,6 +454,14 @@ draw_entity :: proc(e: ^Entity, state: ^GameState) {
 		if draw_debug do draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), state.scale_hint, .DEBUG)
 	} else {
 		dmg_brightness := e.brightness * damage_brightness_mod(e^, state.gameTime)
-		draw_enity_shape(e.shape, entity_world_pos(e^), entity_world_rot(e^), state.scale_hint, e.col, dmg_brightness)
+		draw_enity_shape(
+			e.shape,
+			entity_world_pos(e^),
+			entity_world_rot(e^),
+			state.scale_hint,
+			e.col,
+			dmg_brightness,
+		)
 	}
 }
+

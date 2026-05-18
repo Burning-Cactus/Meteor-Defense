@@ -5,7 +5,11 @@ import "core:c"
 import "core:math"
 import rl "vendor:raylib"
 
-Screen :: enum{Title, Game, Draw}
+Screen :: enum {
+	Title,
+	Game,
+	Draw,
+}
 currentScreen := Screen.Title
 
 run := true
@@ -14,64 +18,71 @@ paused: bool
 camera: rl.Camera2D
 prev_window_size: Vec2
 
-TRANSITION_SPEED:f32:1/ 	0.3//seconds
-ZOOMOUT_SPEED:f32:2/    	1//seconds
-GAME_OVER_SLOMO_TIME:f32:	3// seconds to reach zero time scale
+TRANSITION_SPEED: f32 : 1 / 0.3 //seconds
+ZOOMOUT_SPEED: f32 : 2 / 1 //seconds
+GAME_OVER_SLOMO_TIME: f32 : 3 // seconds to reach zero time scale
 
-EndReason :: enum { None, Victory, Defeat }
-
-GameState :: struct { //TODO: split some of this into new WorldState
-	player: Entity,
-	meteors: [dynamic]Meteor,
-	towers: [dynamic]Tower,
-	projectiles: [dynamic]Entity,
-	vfx: [dynamic]Vfx,
-	comet: Entity,
-	comet_velocity: Vec2, //purely cosmetic
-	highlighted_tower: ^Tower,
-
-	gameTime: f64,
-	timeRemaining: f32,
-	gameOver:      bool,
-	endReason:     EndReason,
-	endTimer:      f32,
-	timeScale:     f32,
-	money:         u32,
-	buildMode:     bool,
-	cursor:        Vec2,
-	scale_hint:    f32,
-
-	difficulty_scale: f32,
-	max_zoom:         f32,
+EndReason :: enum {
+	None,
+	Victory,
+	Defeat,
 }
 
-state:GameState
+GameState :: struct {
+	//TODO: split some of this into new WorldState
+	player:            Entity,
+	meteors:           [dynamic]Meteor,
+	towers:            [dynamic]Tower,
+	projectiles:       [dynamic]Entity,
+	vfx:               [dynamic]Vfx,
+	comet:             Entity,
+	comet_velocity:    Vec2, //purely cosmetic
+	highlighted_tower: ^Tower,
+	gameTime:          f64,
+	timeRemaining:     f32,
+	gameOver:          bool,
+	endReason:         EndReason,
+	endTimer:          f32,
+	timeScale:         f32,
+	money:             u32,
+	buildMode:         bool,
+	cursor:            Vec2,
+	scale_hint:        f32,
+	difficulty_scale:  f32,
+	max_zoom:          f32,
+}
+
+state: GameState
 reset_game :: proc() {
 	delete(state.meteors)
 	delete(state.towers)
 	delete(state.projectiles)
 	delete(state.vfx)
+	polygon, ok := state.comet.shape.(Polygon)
+	if ok {
+		delete(polygon.vertices)
+	}
 	state = {
-		player = Entity{
-			label      = "jelly",
-			pos        = {200, -100},
-			shape      = Rect{32},
-			alive      = true,
+		player = Entity {
+			label = "jelly",
+			pos = {200, -100},
+			shape = Rect{32},
+			alive = true,
 			brightness = 1.8,
 		},
-		comet = Entity{
-			label      = "comet",
-			hp         = 5.0,
+		comet = Entity {
+			label = "comet",
+			hp = 5.0,
 			alive = true,
-			max_hp     = 5.0,
-			shape      = Polygon{pentagon},
+			max_hp = 5.0,
+			shape = Polygon{generate_comet_shape()},
 			brightness = 1.0,
 		},
-		timeRemaining    = 360,
-		money            = 200,
+		timeRemaining = 360,
+		money = 200,
 		difficulty_scale = 1,
-		timeScale        = 1,
-		max_zoom         = 2,
+		timeScale = 1,
+		max_zoom = 2,
 	}
 	init_background()
 	camera.offset = Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
@@ -80,7 +91,7 @@ reset_game :: proc() {
 }
 
 game_over :: proc() {
-	state.gameOver  = true
+	state.gameOver = true
 	state.endReason = .Defeat
 	play_sfx("defeat")
 }
@@ -92,7 +103,7 @@ pan_to_new_window_size :: proc() {
 	prev_window_size = curr_size
 }
 
-get_frustum :: proc() -> (start:Vec2, end:Vec2) {
+get_frustum :: proc() -> (start: Vec2, end: Vec2) {
 	sw := f32(rl.GetScreenWidth())
 	sh := f32(rl.GetScreenHeight())
 	start = rl.GetScreenToWorld2D({0, 0}, camera)
@@ -148,7 +159,7 @@ init :: proc() {
 	init_shader()
 }
 
-handle_camera_move ::proc(delta:f32) {
+handle_camera_move :: proc(delta: f32) {
 	// Pan with middle mouse button
 	if rl.IsMouseButtonDown(.MIDDLE) {
 		mouse_delta := rl.GetMouseDelta()
@@ -191,17 +202,16 @@ update :: proc() {
 	// non opaque screen clear
 	afterimage_amount :: 0.65
 	curr_fps := max(cast(f32)rl.GetFPS(), 1.0)
-	wipe_opacity := cast(u8) min(255.0 * (1.0 - afterimage_amount) * 100.0 / curr_fps, 255.0)
+	wipe_opacity := cast(u8)min(255.0 * (1.0 - afterimage_amount) * 100.0 / curr_fps, 255.0)
 	rl.DrawRectangle(0, 0, screenSize.x, screenSize.y, {0, 0, 0, wipe_opacity})
 
 	if performance_test {
-		rl.DrawFPS(50,30)
+		rl.DrawFPS(50, 30)
 	}
 	switch currentScreen {
 	case .Title:
 		draw_title_screen()
 	case .Game:
-
 		// pause
 		if rl.IsKeyPressed(.ESCAPE) {
 			paused = !paused
@@ -220,7 +230,7 @@ update :: proc() {
 			if !state.gameOver {
 				state.timeRemaining -= delta
 				if state.timeRemaining <= 0 {
-					state.gameOver  = true
+					state.gameOver = true
 					state.endReason = .Victory
 					play_sfx("victory")
 				}
@@ -267,18 +277,22 @@ update :: proc() {
 }
 
 
-TransitionPhase :: enum { Idle, FadeIn, FadeOut }
+TransitionPhase :: enum {
+	Idle,
+	FadeIn,
+	FadeOut,
+}
 
-_transition_phase:  TransitionPhase
+_transition_phase: TransitionPhase
 _transition_target: Screen
-_transition_alpha:  f32
+_transition_alpha: f32
 
 
 transition_to :: proc(target: Screen) {
 	queue_music_restart()
 	if _transition_phase != .Idle do return
 	_transition_target = target
-	_transition_phase  = .FadeIn
+	_transition_phase = .FadeIn
 }
 
 set_screen :: proc(target: Screen) {
@@ -288,7 +302,7 @@ set_screen :: proc(target: Screen) {
 		reset_game()
 		clear_music_loop_points()
 	case .Title:
-		set_music_loop_points(3,7)
+		set_music_loop_points(3, 7)
 	case .Draw:
 	}
 
@@ -338,3 +352,4 @@ shutdown :: proc() {
 	shutdown_shader()
 	rl.CloseWindow()
 }
+
