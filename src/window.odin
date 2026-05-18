@@ -95,7 +95,7 @@ Screen :: enum {
 	Game,
 	Draw,
 }
-currentScreen := Screen.Title
+currentScreen := Screen.Game
 
 EndReason :: enum {
 	None,
@@ -227,7 +227,7 @@ reset_game :: proc() {
 			brightness = 1.0,
 		},
 		timeRemaining = 360,
-		money = 200,
+		money = 10,
 		difficulty_scale = 1,
 		timeScale = 1,
 		max_zoom = 1.5,

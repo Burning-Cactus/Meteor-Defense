@@ -50,15 +50,27 @@ MeteorPreset :: struct {
 	death_sfx:                        string,
 }
 meteor_presets := [MeteorType]MeteorPreset {
-	.SHOOTING_STAR = {speed = 145, spin = 0.8, size = 16, health = 1.0, power = 0.2, reward = 1},
-	.METEOROID = {speed = 110, spin = 0.2, size = 24, health = 2.0, power = 1.0, reward = 2},
+	.SHOOTING_STAR = {
+		speed = 145,
+		spin = 0.8,
+		size = 16,
+		health = 1.0,
+		power = 0.2,
+		reward = 2},
+	.METEOROID = {
+		speed = 110,
+		spin = 0.2,
+		size = 24,
+		health = 4.0,
+		power = 0.1,
+		reward = 1},
 	.ASTEROID = {
 		speed = 55,
 		spin = 0.1,
 		size = 128,
-		health = 12.0,
+		health = 18.0,
 		power = 5.0,
-		reward = 10,
+		reward = 0,
 		death_sfx = "asteroid_hit",
 	},
 }
@@ -129,9 +141,13 @@ spawn_timer: f32
 spawn_radius: f32 = 2500
 
 handle_spawns :: proc(state: ^GameState, delta: f32) {
-	if state.gameTime >= 90 && state.gameTime < 120 {
+	if state.gameTime < 10 do return
+	state.difficulty_scale += 0.03 * delta
+
+	if state.gameTime >= 80 && state.gameTime < 130 {
+		if state.gameTime < 90 do return
 		star_storm(state, delta)
-		return
+		if state.gameTime < 110 do return
 	}
 	spawn_timer += state.difficulty_scale * delta
 	if spawn_timer >= spawn_cooldown {
@@ -246,7 +262,7 @@ star_storm :: proc(state: ^GameState, delta: f32) {
 	spawn_timer += state.difficulty_scale * delta
 
 	half_spawn_zone :: math.PI / 5
-	if spawn_timer >= 0.7 {
+	if spawn_timer >= 0.4 {
 		temp_angle := rand.float32() * 2 * half_spawn_zone - half_spawn_zone
 		rot_mat := calculate_rotation_matrix(temp_angle)
 		temp_pos := spawn_pos * rot_mat

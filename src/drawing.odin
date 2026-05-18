@@ -35,7 +35,7 @@ ThemeColor :: enum {
 	DEBUG,
 }
 
-BASE_DRAW_OPACITY:f32: 60 // calibrated at 100 fps
+BASE_DRAW_OPACITY:f32: 80 // calibrated at 100 fps
 draw_opacity: f32 = BASE_DRAW_OPACITY
 theme := [ThemeColor][3]u8 {
 	.FILL =   	{0,    0,    0,  },

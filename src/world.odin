@@ -156,7 +156,6 @@ game_loop :: proc(delta: f32) {
 	remove_dead(&state.projectiles, &state)
 	remove_dead(&state.vfx, &state)
 
-	state.difficulty_scale += 0.05 * delta
 }
 
 move_toward :: proc(f, targ, delta: f32) -> f32 {
