@@ -3,8 +3,7 @@ import "core:math"
 import "core:math/rand"
 import rl "vendor:raylib"
 
-BASE_LINE_THICKNESS:f32: 4.0
-line_thickness: f32 = BASE_LINE_THICKNESS
+line_thickness:f32 : 4.0
 line_resolution ::  48/*lines per 100 pixels*/ / 100.0
 
 Drawshape_Type :: enum {

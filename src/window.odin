@@ -21,9 +21,12 @@ paused: bool
 camera: rl.Camera2D
 prev_window_size: Vec2
 
-// Reference screen size; zoom and line_thickness are calibrated for this.
-REFERENCE_SCREEN_METRIC: f32 : 1000 // (1280 + 720) / 2
-BASE_CAMERA_ZOOM: f32 : 4.0
+REFERENCE_SCREEN_METRIC:f32: 1000 // (1280 + 720) / 2
+BASE_CAMERA_ZOOM:f32: 4.0
+
+screen_size :: proc() -> (i32, i32) {
+	return rl.GetScreenWidth(), rl.GetScreenHeight()
+}
 
 screen_size_metric :: proc() -> f32 {
 	return (f32(rl.GetScreenWidth()) + f32(rl.GetScreenHeight())) / 2
@@ -31,6 +34,14 @@ screen_size_metric :: proc() -> f32 {
 
 screen_size_ratio :: proc() -> f32 {
 	return screen_size_metric() / REFERENCE_SCREEN_METRIC
+}
+
+draw_screen_message ::proc(msg:cstring) {
+	w,h := screen_size()
+	max_width := w - min(20, w/12)
+	msg_size := min(64, max_width / i32(len(msg)))
+	actual_width := rl.MeasureText(msg, msg_size)
+	rl.DrawText(msg, (w-actual_width)/2, (h+msg_size)/2, msg_size, rl.LIGHTGRAY)
 }
 
 TRANSITION_SPEED: f32 : 1 / 0.3 //seconds
@@ -98,7 +109,7 @@ reset_game :: proc() {
 		money = 200,
 		difficulty_scale = 1,
 		timeScale = 1,
-		max_zoom = 0.45,
+		max_zoom = 1.5,
 	}
 	init_background()
 	camera.offset = Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
@@ -122,7 +133,6 @@ pan_to_new_window_size :: proc() {
 	delta := curr_size - prev_window_size
 	camera.target -= delta * (0.5 / camera.zoom)
 	prev_window_size = curr_size
-	line_thickness = BASE_LINE_THICKNESS * (new_metric / REFERENCE_SCREEN_METRIC)
 }
 
 get_frustum :: proc() -> (start: Vec2, end: Vec2) {
@@ -248,11 +258,13 @@ update :: proc() {
 		draw_title_screen(delta)
 	case .Game:
 		// pause
-		if rl.IsKeyPressed(.ESCAPE) {
+		if rl.IsKeyPressed(.SPACE) {
 			paused = !paused
 		}
 		if !paused {
 			if state.gameOver {
+				msg: cstring = "VICTORY" if state.endReason == .Victory else "GAME OVER"
+				draw_screen_message(msg)
 				state.timeScale = max(state.timeScale - delta / GAME_OVER_SLOMO_TIME, 0)
 				state.endTimer += delta
 				if state.endTimer >= 4.0 {
@@ -270,6 +282,8 @@ update :: proc() {
 					play_sfx("victory")
 				}
 			}
+		} else {
+			draw_screen_message("PAUSED")
 		}
 		if rl.IsKeyPressed(.R) {
 			transition_to(.Game)
