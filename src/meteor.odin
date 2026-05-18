@@ -126,9 +126,13 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 
 spawn_cooldown: f32 = 4.0
 spawn_timer: f32
-spawn_radius: f32 = 2000
+spawn_radius: f32 = 2500
 
 handle_spawns :: proc(state: ^GameState, delta: f32) {
+	if state.gameTime >= 90 && state.gameTime < 120 {
+		star_storm(state, delta)
+		return
+	}
 	spawn_timer += state.difficulty_scale * delta
 	if spawn_timer >= spawn_cooldown {
 		// We'll determine the spawn position in polar coordinates, then convert to cartesian.
@@ -159,19 +163,16 @@ choose_formation :: proc(state: ^GameState) -> Formation {
 	wide_weight: i32 : 4
 	long_weight: i32 : 4
 	circle_weight: i32 : 4
-	erratic: i32 : 2
-	r := rand.int31_max(wide_weight + long_weight + circle_weight + erratic)
+	r := rand.int31_max(wide_weight + long_weight + circle_weight)
 	if r < wide_weight do return Formation.WIDE
 	if r < wide_weight + long_weight do return Formation.LONG
-	if r < wide_weight + long_weight + circle_weight do return Formation.CIRCLE
-	return Formation.ERRATIC
+	return Formation.CIRCLE
 }
 
 Formation :: enum {
 	WIDE,
 	LONG,
 	CIRCLE,
-	ERRATIC,
 }
 
 spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
@@ -236,13 +237,21 @@ spawn_group :: proc(
 		case .CIRCLE:
 			p *= slice_rot_mat
 			spawn_meteor(state, temp_pos + p, type)
-		case .ERRATIC:
-			p =
-				Vec2{size * f32(rand.int31_max(i) + 1), size * f32(rand.int31_max(i) + 1)} *
-				facing_rot_mat
-			temp_pos += p
-			spawn_meteor(state, temp_pos, type)
 		}
+	}
+}
+
+star_storm :: proc(state: ^GameState, delta: f32) {
+	spawn_pos := normalize(state.comet_velocity) * spawn_radius + 500
+	spawn_timer += state.difficulty_scale * delta
+
+	half_spawn_zone :: math.PI / 5
+	if spawn_timer >= 0.7 {
+		temp_angle := rand.float32() * 2 * half_spawn_zone - half_spawn_zone
+		rot_mat := calculate_rotation_matrix(temp_angle)
+		temp_pos := spawn_pos * rot_mat
+		spawn_group(state, temp_pos, .SHOOTING_STAR, choose_formation(state))
+		spawn_timer -= 0.7
 	}
 }
 
