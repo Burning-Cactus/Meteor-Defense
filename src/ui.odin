@@ -72,6 +72,14 @@ screen_vec :: proc() -> Vec2 {
 	return Vec2{f32(w), f32(h)}
 }
 
+padding :: proc() -> (x:i32,y:i32) {
+	w,h := screen_size()
+	return min(30, w/20), min(30,h/20)
+}
+padding_f :: proc() -> (x:f32,y:f32) {
+	size := screen_vec()
+	return min(30, size.x/20), min(30,size.y/20)
+}
 // Whether something has been clicked this frame
 // Used to prevent clicking on multiple things at once
 // Has to be reset every frame
@@ -107,6 +115,47 @@ box_geo ::proc(start:Vec2, end:Vec2) -> (center:Vec2, size:Vec2) {
 
 // --- General Drawing ---
 
+TextureMajorAxis :: enum { WIDTH, HEIGHT }
+
+draw_texture :: proc(
+	texture: rl.Texture2D,
+	pos: Vec2,
+	anchor: DrawDirection =.TOP_LEFT,
+	major_axis: TextureMajorAxis = .WIDTH,
+	max_major_prop: f32 = 0,
+	major_length: f32 = 0,
+) -> Vec2 {
+	native := Vec2{f32(texture.width), f32(texture.height)}
+	major_native := native.x if major_axis == .WIDTH else native.y
+
+	desired := major_length if major_length > 0 else major_native
+	if max_major_prop > 0 {
+		desired = min(desired, f32(rl.GetScreenWidth()) * max_major_prop)
+	}
+
+	scale := desired / major_native
+	draw_size := native * scale
+
+	dir := direction_offset(anchor)
+	top_left := pos - draw_size * (dir + 1) / 2
+	rl.DrawTexturePro(
+		texture,
+		{0, 0, native.x, native.y},
+		{top_left.x, top_left.y, draw_size.x, draw_size.y},
+		{0, 0},
+		0,
+		rl.WHITE,
+	)
+	return draw_size
+}
+
+draw_text :: proc(text: cstring, pos: Vec2, font_size: i32, anchor: DrawDirection) {
+	text_size := Vec2{f32(rl.MeasureText(text, font_size)), f32(font_size)}
+	dir := direction_offset(anchor)
+	top_left := pos - text_size * (dir + 1) / 2
+	rl.DrawText(text, i32(top_left.x), i32(top_left.y), font_size, rl.WHITE)
+}
+
 draw_screen_message ::proc(msg:cstring) {
 	w,h := screen_size()
 	max_width := w - min(20, w/12)
@@ -115,17 +164,18 @@ draw_screen_message ::proc(msg:cstring) {
 	rl.DrawText(msg, (w-actual_width)/2, (h+msg_size)/2, msg_size, rl.LIGHTGRAY)
 }
 
-draw_button :: proc(pos: Vec2, size: Vec2, rot: f32, cursor: Vec2, text: cstring = "", scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) -> bool {
-	start := pos - size / 2
-	end := pos + size / 2
+draw_button :: proc(pos: Vec2, size: Vec2, rot: f32, cursor: Vec2, text: cstring = "", scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0, anchor: DrawDirection = .TOP_LEFT) -> bool {
+	center := pos - size * direction_offset(anchor) / 2
+	start := center - size / 2
+	end := center + size / 2
 	b := brightness
 	if is_box_hovered(start, end, cursor) {
 		b *= 1.8
 	}
-	draw_rect(pos, size, rot, scale_hint, col, b)
+	draw_rect(center, size, rot, scale_hint, col, b)
 	font_size: i32 = 20
 	text_w := rl.MeasureText(text, font_size)
-	rl.DrawText(text, i32(pos.x) - text_w / 2, i32(pos.y) - font_size / 2, font_size, modulate(col, b))
+	rl.DrawText(text, i32(center.x) - text_w / 2, i32(center.y) - font_size / 2, font_size, modulate(col, b))
 	return is_box_clicked(start, end, cursor)
 }
 

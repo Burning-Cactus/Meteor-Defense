@@ -95,7 +95,7 @@ Screen :: enum {
 	Game,
 	Draw,
 }
-currentScreen := Screen.Game
+currentScreen := Screen.Title
 
 EndReason :: enum {
 	None,
@@ -244,34 +244,23 @@ draw_title_screen :: proc(delta: f32) {
 	rl.BeginMode2D(camera)
 	draw_game_screen(&state)
 	rl.EndMode2D()
-	//update_background(delta)
+	update_background(delta)
+	draw_background()
 
-	mid := Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
-	cursor := rl.GetMousePosition()
+	pad_x, pad_y := padding()
+	padv:Vec2 = {f32(pad_x), f32(pad_y)}
+	draw_start:= padv
+	tx_rect:=draw_texture(logo_texture, {f32(pad_x), f32(pad_y)}, .TOP_LEFT, .WIDTH, 0.5, 600)
+	draw_start += tx_rect.y
 
-	screen := mid * 2
-	logo_scale := min(screen.x / f32(logo_texture.width), screen.y / f32(logo_texture.height), 1.0)
-	logo_draw_size := Vec2{f32(logo_texture.width), f32(logo_texture.height)} * logo_scale
-	logo_dst := rl.Rectangle {
-		mid.x - logo_draw_size.x / 2,
-		mid.y - logo_draw_size.y / 2 - 60,
-		logo_draw_size.x,
-		logo_draw_size.y,
-	}
-	rl.DrawTexturePro(
-		logo_texture,
-		{0, 0, f32(logo_texture.width), f32(logo_texture.height)},
-		logo_dst,
-		{0, 0},
-		0,
-		rl.WHITE,
-	)
+	draw_text("jcomcl and BurningCactus",
+		{tx_rect.x/2 -padv.x, draw_start.y},
+	17, .CENTER)
 
 	btn_size := Vec2{240, 52}
-	btn_pos := Vec2{mid.x, mid.y + 60}
-	if draw_button(btn_pos, btn_size, 0, cursor, "commence") {
+	if draw_button(padv + {padv.x ,tx_rect.y + padv.y*2.0}, btn_size, 0, rl.GetMousePosition(), "commence") {
 		play_sfx("game_start")
-		transition_to(.Game)
+		set_screen(.Game)
 	}
 }
 
