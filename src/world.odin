@@ -133,7 +133,7 @@ game_loop :: proc(delta: f32) {
 	state.comet.rot += 0.1 * delta
 
 	// Handle entities
-	handle_input()
+	handle_input(delta)
 	player := &state.player
 	player.pos += player.velocity * delta
 	player.rot = angle_facing(player.pos, state.cursor)
@@ -167,15 +167,26 @@ game_loop :: proc(delta: f32) {
 	state.difficulty_scale += 0.05 * delta
 }
 
-handle_input :: proc() {
+move_toward :: proc(f, targ, delta: f32) -> f32 {
+	diff := targ - f
+	if abs(diff) <= delta do return targ
+	return f + math.sign(diff) * delta
+}
+handle_input :: proc(delta: f32) {
 	player := &state.player
 
 	playerSpeed :: 100
-	player.velocity = {0, 0}
-	if rl.IsKeyDown(.A) do player.velocity.x -= playerSpeed
-	if rl.IsKeyDown(.D) do player.velocity.x += playerSpeed
-	if rl.IsKeyDown(.W) do player.velocity.y -= playerSpeed
-	if rl.IsKeyDown(.S) do player.velocity.y += playerSpeed
+	playerAccel :: 300
+
+	target_x: f32
+	target_y: f32
+	if rl.IsKeyDown(.A) do target_x -= 1
+	if rl.IsKeyDown(.D) do target_x += 1
+	if rl.IsKeyDown(.W) do target_y -= 1
+	if rl.IsKeyDown(.S) do target_y += 1
+
+	player.velocity.x = move_toward(player.velocity.x, target_x * playerSpeed, playerAccel * delta)
+	player.velocity.y = move_toward(player.velocity.y, target_y * playerSpeed, playerAccel * delta)
 	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) && try_claim_click() {
 		bulletSpeed :: 500
 		bullet_normal := unit_vector(player.rot)
