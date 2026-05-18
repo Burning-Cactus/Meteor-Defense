@@ -5,6 +5,9 @@ import "core:c"
 import "core:math"
 import rl "vendor:raylib"
 
+_LOGO_PNG :: #load("../assets/logo.png")
+logo_texture: rl.Texture2D
+
 Screen :: enum {
 	Title,
 	Game,
@@ -130,28 +133,34 @@ get_frustum :: proc() -> (start: Vec2, end: Vec2) {
 	return
 }
 
-draw_title_screen :: proc() {
-	screenSize := [2]i32{rl.GetScreenWidth(), rl.GetScreenHeight()}
-	midPoint := cast(Vec2)screenSize / 2
-	rl.DrawRectangleV(midPoint - {300, 100}, {600, 200}, rl.GRAY)
+draw_title_screen :: proc(delta: f32) {
+	draw_game_screen(&state)
+	update_background(delta)
 
-	rl.GuiSetStyle(
-		.LABEL,
-		i32(rl.GuiControlProperty.TEXT_COLOR_NORMAL),
-		i32(rl.ColorToInt(rl.WHITE)),
+	mid := Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
+	cursor := rl.GetMousePosition()
+
+	screen := mid * 2
+	logo_scale := min(screen.x / f32(logo_texture.width), screen.y / f32(logo_texture.height), 1.0)
+	logo_draw_size := Vec2{f32(logo_texture.width), f32(logo_texture.height)} * logo_scale
+	logo_dst := rl.Rectangle {
+		mid.x - logo_draw_size.x / 2,
+		mid.y - logo_draw_size.y / 2 - 60,
+		logo_draw_size.x,
+		logo_draw_size.y,
+	}
+	rl.DrawTexturePro(
+		logo_texture,
+		{0, 0, f32(logo_texture.width), f32(logo_texture.height)},
+		logo_dst,
+		{0, 0},
+		0,
+		rl.WHITE,
 	)
-	rl.GuiSetStyle(
-		.BUTTON,
-		i32(rl.GuiControlProperty.BASE_COLOR_NORMAL),
-		i32(rl.ColorToInt({0x33, 0x88, 0xBB, 0xFF})),
-	)
-	rl.GuiSetStyle(
-		.BUTTON,
-		i32(rl.GuiControlProperty.TEXT_COLOR_NORMAL),
-		i32(rl.ColorToInt(rl.WHITE)),
-	)
-	rl.GuiLabel({midPoint.x - 280, midPoint.y - 90, 560, 20}, "Welcome to JellyJam!")
-	if rl.GuiButton({midPoint.x - 280, midPoint.y - 60, 560, 60}, "Start game") {
+
+	btn_size := Vec2{240, 52}
+	btn_pos := Vec2{mid.x, mid.y + 60}
+	if draw_button(btn_pos, btn_size, 0, cursor, "commence") {
 		play_sfx("game_start")
 		transition_to(.Game)
 	}
@@ -176,6 +185,10 @@ init :: proc() {
 	init_sfx()
 	init_meteor_polygons()
 	init_shader()
+
+	img := rl.LoadImageFromMemory(".png", raw_data(_LOGO_PNG), i32(len(_LOGO_PNG)))
+	logo_texture = rl.LoadTextureFromImage(img)
+	rl.UnloadImage(img)
 }
 
 handle_camera_move :: proc(delta: f32) {
@@ -232,7 +245,7 @@ update :: proc() {
 	}
 	switch currentScreen {
 	case .Title:
-		draw_title_screen()
+		draw_title_screen(delta)
 	case .Game:
 		// pause
 		if rl.IsKeyPressed(.ESCAPE) {
@@ -326,6 +339,7 @@ set_screen :: proc(target: Screen) {
 	case .Title:
 		set_music_loop_points(3, 7)
 	case .Draw:
+		reset_game()
 		state.max_zoom = 64
 	}
 
@@ -371,6 +385,7 @@ should_run :: proc() -> bool {
 }
 
 shutdown :: proc() {
+	rl.UnloadTexture(logo_texture)
 	shutdown_sfx()
 	shutdown_shader()
 	rl.CloseWindow()

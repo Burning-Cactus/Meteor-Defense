@@ -107,6 +107,20 @@ draw_tool_basic :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f
 	return is_box_clicked(start, end, cursor) || get_number_pressed() == idx
 }
 
+draw_button :: proc(pos: Vec2, size: Vec2, rot: f32, cursor: Vec2, text: cstring = "", scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0) -> bool {
+	start := pos - size / 2
+	end := pos + size / 2
+	b := brightness
+	if is_box_hovered(start, end, cursor) {
+		b *= 1.8
+	}
+	draw_rect(pos, size, rot, scale_hint, col, b)
+	font_size: i32 = 20
+	text_w := rl.MeasureText(text, font_size)
+	rl.DrawText(text, i32(pos.x) - text_w / 2, i32(pos.y) - font_size / 2, font_size, modulate(col, b))
+	return is_box_clicked(start, end, cursor)
+}
+
 draw_toolbar :: proc(
 		start: Vec2, anchor: DrawDirection, list_direction: DrawDirection, count: int,
 		draw_tool: proc(start: Vec2, end: Vec2, idx: int, cursor: Vec2, scale_hint: f32 = 1.0) -> bool = draw_tool_basic) -> int {
