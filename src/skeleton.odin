@@ -123,6 +123,15 @@ draw_on_bone :: proc(b: Bone, shapes: []Drawshape, scale_hint:f32=1.0, col:Theme
 	}
 }
 
+draw_on_bone_pro :: proc(b: Bone, shapes: []DrawshapePro, scale_hint: f32 = 1.0) {
+	for s in shapes {
+		ws := s
+		ws.start = bone_to_world(b, s.start)
+		ws.end   = bone_to_world(b, s.end)
+		draw_shape_pro(ws, scale_hint)
+	}
+}
+
 flip_h :: proc(shapes: []Drawshape) -> []Drawshape {
 	for &s in shapes {
 		s.start.x *= -1
@@ -164,7 +173,7 @@ closed_polygon :: proc(pts: []Vec2, allocator := context.temp_allocator) -> []Dr
 }
 
 // Visualise all bones in DEBUG color. Call from the F3 overlay when tuning a character.
-draw_skeleton_debug :: proc(sk: Skeleton, scale_hint: f32) {
+draw_skeleton_debug :: proc(sk: Skeleton, scale_hint: f32, col: ThemeColor = .DEBUG, brightness: f32 = 1.0) {
 	bones := [10]Bone{
 		sk.torso,
 		sk.head,
@@ -174,6 +183,6 @@ draw_skeleton_debug :: proc(sk: Skeleton, scale_hint: f32) {
 		sk.upper_leg_l, sk.lower_leg_l,
 	}
 	for b in bones {
-		draw_line(b.root, b.tip, scale_hint, .DEBUG)
+		draw_line(b.root, b.tip, scale_hint, col, brightness)
 	}
 }

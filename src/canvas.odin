@@ -1,9 +1,14 @@
 package game
 
 import "core:math"
+import "core:os"
 import rl "vendor:raylib"
 
-HandleMode :: enum {START, END, BOTH}
+HandleMode :: enum {
+	START,
+	END,
+	BOTH,
+}
 
 ShapeRef :: struct {
 	group: ^DrawshapeGroup,
@@ -19,15 +24,15 @@ shape_handle_sqrdist :: proc(d: Drawable, point: Vec2, threshold: f32) -> (f32, 
 			return dist_squared(point, v.end), .END
 		case .LINE:
 			start_sqrdist := dist_squared(point, v.start)
-			end_sqrdist   := dist_squared(point, v.end)
+			end_sqrdist := dist_squared(point, v.end)
 			if start_sqrdist < thr_sqr || end_sqrdist < thr_sqr {
 				if start_sqrdist < end_sqrdist do return start_sqrdist, .START
 				return end_sqrdist, .END
 			}
 			return dist_squared(point, closest_point_on_segment(point, v.start, v.end)), .BOTH
 		case .CIRCLE:
-			center_sqrdist    := dist_squared(point, v.start)
-			radius            := math.sqrt(dist_squared(v.start, v.end))
+			center_sqrdist := dist_squared(point, v.start)
+			radius := math.sqrt(dist_squared(v.start, v.end))
 			perimeter_sqrdist := sqr(math.sqrt(center_sqrdist) - radius)
 			if center_sqrdist < perimeter_sqrdist do return center_sqrdist, .BOTH
 			return perimeter_sqrdist, .END
@@ -50,48 +55,63 @@ shape_handle_sqrdist :: proc(d: Drawable, point: Vec2, threshold: f32) -> (f32, 
 }
 
 nearest_shape_in_group :: proc(
-	group:     ^DrawshapeGroup,
-	point:     Vec2,
+	group: ^DrawshapeGroup,
+	point: Vec2,
 	threshold: f32,
-	best:      ^f32,
-) -> (ref: ShapeRef, handle: HandleMode, found: bool) {
-	for i in 0..<len(group.contents) {
+	best: ^f32,
+) -> (
+	ref: ShapeRef,
+	handle: HandleMode,
+	found: bool,
+) {
+	for i in 0 ..< len(group.contents) {
 		item := group.contents[i]
 		if g, ok := item^.(^DrawshapeGroup); ok {
 			sub_ref, sub_handle, sub_found := nearest_shape_in_group(g, point, threshold, best)
 			if sub_found {
-				ref    = sub_ref
+				ref = sub_ref
 				handle = sub_handle
-				found  = true
+				found = true
 			}
 		} else {
 			dist, h := shape_handle_sqrdist(item^, point, threshold)
 			if dist < best^ {
-				best^  = dist
-				ref    = {group, i}
+				best^ = dist
+				ref = {group, i}
 				handle = h
-				found  = true
+				found = true
 			}
 		}
 	}
 	return
 }
 
-nearest_shape :: proc(group: ^DrawshapeGroup, point: Vec2, threshold: f32) -> (ref: ShapeRef, handle: HandleMode, found: bool) {
+nearest_shape :: proc(
+	group: ^DrawshapeGroup,
+	point: Vec2,
+	threshold: f32,
+) -> (
+	ref: ShapeRef,
+	handle: HandleMode,
+	found: bool,
+) {
 	best := threshold * threshold
 	return nearest_shape_in_group(group, point, threshold, &best)
 }
 
-highlighted_ref:    ShapeRef
-highlighted_found:  bool
+highlighted_ref: ShapeRef
+highlighted_found: bool
 highlighted_handle: HandleMode
 drag_offset: Vec2
 
 drawable_base_shape :: proc(d: Drawable) -> (s: Drawshape, ok: bool) {
 	switch v in d {
-	case Drawshape:       return v, true
-	case DrawshapePro:    return v.drawshape, true
-	case ^DrawshapeGroup: return {}, false
+	case Drawshape:
+		return v, true
+	case DrawshapePro:
+		return v.drawshape, true
+	case ^DrawshapeGroup:
+		return {}, false
 	}
 	return {}, false
 }
@@ -109,7 +129,7 @@ handle_highlighted_shape :: proc(ref: ShapeRef, handle: HandleMode) {
 				draw_shape(d, state.scale_hint, .DEBUG, 5.0)
 			case .BOTH:
 				draw_dot(base.start, dot_scale, .DEBUG, 2.0)
-				draw_dot(base.end,   dot_scale, .DEBUG, 2.0)
+				draw_dot(base.end, dot_scale, .DEBUG, 2.0)
 			}
 		} else {
 			switch handle {
@@ -138,12 +158,12 @@ move_drawable :: proc(d: ^Drawable, delta: Vec2, move_whole: bool, handle: Handl
 	case Drawshape:
 		s := d^.(Drawshape)
 		if move_whole || handle == .START do s.start += delta
-		if move_whole || handle == .END   do s.end   += delta
+		if move_whole || handle == .END do s.end += delta
 		d^ = s
 	case DrawshapePro:
 		p := d^.(DrawshapePro)
 		if move_whole || handle == .START do p.start += delta
-		if move_whole || handle == .END   do p.end   += delta
+		if move_whole || handle == .END do p.end += delta
 		d^ = p
 	case ^DrawshapeGroup:
 		g := d^.(^DrawshapeGroup)
@@ -153,34 +173,127 @@ move_drawable :: proc(d: ^Drawable, delta: Vec2, move_whole: bool, handle: Handl
 	}
 }
 
-draw_drag:  Drag = {button = rl.MouseButton.LEFT}
-shape_drag: Drag = {button = rl.MouseButton.RIGHT}
-root:            DrawshapeGroup = {name = "root"}
+draw_drag: Drag = {
+	button = rl.MouseButton.LEFT,
+}
+shape_drag: Drag = {
+	button = rl.MouseButton.RIGHT,
+}
+root: DrawshapeGroup = {
+	name = "root",
+}
 selected_shapes: [dynamic]ShapeRef
 
+BONE_NAMES := [10]string {
+	"torso",
+	"head",
+	"upper_arm_r",
+	"lower_arm_r",
+	"upper_arm_l",
+	"lower_arm_l",
+	"upper_leg_r",
+	"lower_leg_r",
+	"upper_leg_l",
+	"lower_leg_l",
+}
+
+bone_groups:        [10]^DrawshapeGroup
+active_bone_group:  ^DrawshapeGroup
+canvas_skeleton:    Skeleton
+canvas_initialized: bool
+selected_color:     ThemeColor = .PRIMARY
+
+NUM_THEME_COLORS :: int(max(ThemeColor)) + 1
+
+skeleton_bones :: proc(sk: Skeleton) -> [10]Bone {
+	return {
+		sk.torso,
+		sk.head,
+		sk.upper_arm_r,
+		sk.lower_arm_r,
+		sk.upper_arm_l,
+		sk.lower_arm_l,
+		sk.upper_leg_r,
+		sk.lower_leg_r,
+		sk.upper_leg_l,
+		sk.lower_leg_l,
+	}
+}
+
+nearest_bone_group :: proc(pos: Vec2) -> ^DrawshapeGroup {
+	bones := skeleton_bones(canvas_skeleton)
+	best_dist: f32 = math.F32_MAX
+	best_idx := 0
+	for b, i in bones {
+		closest := closest_point_on_segment(pos, b.root, b.tip)
+		d := dist_squared(pos, closest)
+		if d < best_dist {
+			best_dist = d
+			best_idx = i
+		}
+	}
+	return bone_groups[best_idx]
+}
+
+init_canvas :: proc() {
+	canvas_skeleton = build_skeleton({0, 0}, jelly_proportions, jelly_idle_pose)
+	for i in 0 ..< 10 {
+		g := new(DrawshapeGroup)
+		g.name = BONE_NAMES[i]
+		g.contents = make([dynamic]^Drawable)
+		bone_groups[i] = g
+		ptr := new(Drawable)
+		ptr^ = Drawable(g)
+		append(&root.contents, ptr)
+	}
+
+	data, read_err := os.read_entire_file_from_path("assets/shapes.json", context.allocator)
+	if read_err != nil do return
+	defer delete(data)
+
+	loaded_d, decoded := drawable_decode(data)
+	if !decoded do return
+	loaded_root, is_group := loaded_d.(^DrawshapeGroup)
+	if !is_group do return
+
+	for item in loaded_root.contents {
+		sub, sub_ok := item^.(^DrawshapeGroup)
+		if !sub_ok do continue
+		for name, i in BONE_NAMES {
+			if sub.name == name {
+				bone_groups[i].contents = sub.contents
+				break
+			}
+		}
+	}
+}
+
 CanvasTool :: struct {
-	name:cstring,
-	drag_handler:proc(d:Drag) -> Drawable,
+	name:         cstring,
+	drag_handler: proc(d: Drag) -> Drawable,
 }
-shape_tool_drag_handler ::proc(d:Drag, shape:Drawshape_Type) -> Drawable {
-	return Drawshape{shape, d.start, d.end}
+shape_tool_drag_handler :: proc(d: Drag, shape: Drawshape_Type) -> Drawable {
+	out := DrawshapePro{drawshape = {shape, d.start, d.end}, col = selected_color, brightness = 1.0}
+	draw_shape(out, state.scale_hint)
+	return out
 }
-canvas_tools:[]CanvasTool = {
-	{"Dot", proc(d:Drag) -> Drawable {
-		return shape_tool_drag_handler(d, .DOT)
-	}},
-	{"Line", proc(d:Drag) -> Drawable {
-		return shape_tool_drag_handler(d, .LINE)
-	}},
-	{"Circle", proc(d:Drag) -> Drawable {
-		return shape_tool_drag_handler(d, .CIRCLE)
-	}},
-
-}
+canvas_tools: []CanvasTool = {{"Dot", proc(d: Drag) -> Drawable {
+			return shape_tool_drag_handler(d, .DOT)
+		}}, {"Line", proc(d: Drag) -> Drawable {
+			return shape_tool_drag_handler(d, .LINE)
+		}}, {"Circle", proc(d: Drag) -> Drawable {
+			return shape_tool_drag_handler(d, .CIRCLE)
+		}}}
 
 
-draw_canvas_tool :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f32=1.0) -> bool {
-	brightness:f32= .5
+draw_canvas_tool :: proc(
+	start: Vec2,
+	end: Vec2,
+	idx: int,
+	cursor: Vec2,
+	scale_hint: f32 = 1.0,
+) -> bool {
+	brightness: f32 = .5
 	if is_box_hovered(start, end, cursor) {
 		brightness = 1.0
 	}
@@ -192,25 +305,35 @@ draw_canvas_tool :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:
 
 	draw_box(start, end, scale_hint, .PRIMARY, brightness)
 
-	x,y := vec_ints(start+ size/10)
-	rl.DrawText(rl.TextFormat("%i", idx+1), x, y, 10, modulate(.PRIMARY))
-	x,y = vec_ints({start.x+ size.x*0.1, start.y+ size.y*0.8})
+	x, y := vec_ints(start + size / 10)
+	rl.DrawText(rl.TextFormat("%i", idx + 1), x, y, 10, modulate(.PRIMARY))
+	x, y = vec_ints({start.x + size.x * 0.1, start.y + size.y * 0.8})
 	rl.DrawText(canvas_tools[idx].name, x, y, 10, modulate(.PRIMARY))
 
-	return is_box_clicked(start, end, cursor) || get_number_pressed() == idx
+	return get_number_pressed() == idx || !click_claimed && is_box_clicked(start, end, cursor)
 }
 
-selected_tool_idx:int
-draw_canvas_toolbar ::proc() {
-	if i := draw_toolbar({10, 50}, .TOP_LEFT, .BOTTOM, len(canvas_tools), draw_canvas_tool); i != -1{
+selected_tool_idx: int
+draw_canvas_toolbar :: proc() {
+	if i := draw_toolbar({10, 50}, .TOP_LEFT, .BOTTOM, len(canvas_tools), draw_canvas_tool);
+	   i != -1 {
 		selected_tool_idx = i
 	}
+	draw_dot({f32(rl.GetScreenWidth()) - 20, 20}, 0.3, selected_color, 5.0)
 }
 
 canvas_loop :: proc(delta: f32) {
+	if !canvas_initialized {
+		init_canvas()
+		canvas_initialized = true
+	}
+	canvas_skeleton = build_skeleton({0, 0}, jelly_proportions, jelly_idle_pose)
+	draw_skeleton_debug(canvas_skeleton, state.scale_hint, .PRIMARY, 0.3)
+
 	select_threshold := 20.0 / state.scale_hint
 
-	if drag_started(&shape_drag) {
+	if !click_claimed && drag_started(&shape_drag) {
+		click_claimed = true
 		if len(selected_shapes) == 0 && highlighted_found {
 			append(&selected_shapes, highlighted_ref)
 		}
@@ -223,7 +346,12 @@ canvas_loop :: proc(delta: f32) {
 		shape_drag.end = state.cursor
 		for ref in selected_shapes {
 			move_whole := len(selected_shapes) > 1 || highlighted_handle == .BOTH
-			move_drawable(ref.group.contents[ref.idx], cursor_delta, move_whole, highlighted_handle)
+			move_drawable(
+				ref.group.contents[ref.idx],
+				cursor_delta,
+				move_whole,
+				highlighted_handle,
+			)
 		}
 	}
 
@@ -232,7 +360,11 @@ canvas_loop :: proc(delta: f32) {
 	}
 
 	if !shape_drag.active {
-		highlighted_ref, highlighted_handle, highlighted_found = nearest_shape(&root, state.cursor, select_threshold)
+		highlighted_ref, highlighted_handle, highlighted_found = nearest_shape(
+			&root,
+			state.cursor,
+			select_threshold,
+		)
 	}
 
 	draw_shape_group(root, state.scale_hint)
@@ -240,16 +372,33 @@ canvas_loop :: proc(delta: f32) {
 
 	// use tool
 	drag_handler := canvas_tools[selected_tool_idx].drag_handler
-	if drag_started(&draw_drag){
+	if !click_claimed && drag_started(&draw_drag) {
+		click_claimed   = true
 		draw_drag.start = state.cursor
+		active_bone_group = nearest_bone_group(state.cursor)
 	}
 	if draw_drag.active {
 		draw_drag.end = state.cursor
-		draw_shape(drag_handler(draw_drag))
+		drag_handler(draw_drag)
 	}
 	if drag_ended(&draw_drag) {
 		ptr := new(Drawable)
 		ptr^ = drag_handler(draw_drag)
-		append(&root.contents, ptr)
+		append(&active_bone_group.contents, ptr)
+	}
+
+	if rl.IsKeyPressed(.RIGHT_BRACKET) {
+		selected_color = ThemeColor((int(selected_color) + 1) % NUM_THEME_COLORS)
+	}
+	if rl.IsKeyPressed(.LEFT_BRACKET) {
+		selected_color = ThemeColor((int(selected_color) - 1 + NUM_THEME_COLORS) % NUM_THEME_COLORS)
+	}
+
+	if rl.IsKeyPressed(.P) {
+		data, err := drawable_encode(&root)
+		if err == nil {
+			_ = os.write_entire_file("../../assets/shapes.json", data)
+			delete(data)
+		}
 	}
 }

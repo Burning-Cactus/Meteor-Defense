@@ -70,6 +70,7 @@ reset_game :: proc() {
 			shape      = Rect{32},
 			alive      = true,
 			brightness = 1.8,
+			draw = draw_player,
 		},
 		comet = Entity{
 			label      = "comet",
@@ -304,13 +305,14 @@ transition_to :: proc(target: Screen) {
 
 set_screen :: proc(target: Screen) {
 	defer currentScreen = target
-	switch _transition_target {
+	switch target {
 	case .Game:
 		reset_game()
 		clear_music_loop_points()
 	case .Title:
 		set_music_loop_points(3,7)
 	case .Draw:
+		state.max_zoom = 64
 	}
 
 }
