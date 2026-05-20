@@ -13,7 +13,7 @@ ShaderParams :: struct {
 shader_target: rl.RenderTexture2D
 shader:        rl.Shader
 shader_params := ShaderParams{
-	ca_strength    = 0.0012,
+	ca_strength    = 1.5,
 	glow_radius    = 3.8,
 	glow_strength  = 0.4,
 	noise_strength = 0.35,
@@ -87,7 +87,7 @@ draw_shader_debug :: proc() {
 	sw := W - PAD * 2
 	y  := f32(10) + PAD
 
-	rl.GuiSliderBar({x, y, sw, ROW}, "CA",         rl.TextFormat("%.4f", shader_params.ca_strength),    &shader_params.ca_strength,    0,   0.02)
+	rl.GuiSliderBar({x, y, sw, ROW}, "CA",         rl.TextFormat("%.4f", shader_params.ca_strength),    &shader_params.ca_strength,    0,   10)
 	y += ROW + PAD
 	rl.GuiSliderBar({x, y, sw, ROW}, "Glow R",     rl.TextFormat("%.1f",  shader_params.glow_radius),   &shader_params.glow_radius,    0.0, 8)
 	y += ROW + PAD

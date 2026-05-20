@@ -306,6 +306,7 @@ update :: proc() {
 				if state.endTimer >= 4.0 do transition_to(.Game)
 			}
 			scaled_delta := delta * state.timeScale
+			draw_tower_toolbar() // must be before game loop to be clickable
 			game_loop(scaled_delta)
 			state.gameTime += f64(scaled_delta)
 			if !state.gameOver {
@@ -319,7 +320,6 @@ update :: proc() {
 		}
 		handle_camera_move(delta)
 
-		draw_tower_toolbar()
 
 		rl.BeginMode2D(camera)
 		draw_game_screen(&state)

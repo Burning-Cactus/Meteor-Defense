@@ -18,9 +18,10 @@ void main() {
     vec2 uv = fragTexCoord;
 
     // Chromatic aberration
-    float r = texture2D(texture0, uv + vec2( ca_strength, 0.0)).r;
+    vec2 ca_px = ca_strength / resolution;
+    float r = texture2D(texture0, uv + vec2( ca_px.x, 0.0)).r;
     float g = texture2D(texture0, uv).g;
-    float b = texture2D(texture0, uv + vec2(-ca_strength, 0.0)).b;
+    float b = texture2D(texture0, uv + vec2(-ca_px.x, 0.0)).b;
     vec3 col = vec3(r, g, b);
 
     // Glow: 8-tap neighborhood
