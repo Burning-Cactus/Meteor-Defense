@@ -190,3 +190,17 @@ random_vector :: proc() -> Vec2{
 percent_chance :: proc(percent:f32) -> bool {
 	return rand.float32() * 100 < percent
 }
+
+progress :: proc(val:f32, start:f32, end:f32) -> f32 {
+	return clamp((val - start) / (end - start), 0, 1)
+}
+
+// Accumulates delta into timer and fires (returning true and subtracting interval) when it overflows.
+tick :: proc(timer: ^f32, interval, delta: f32) -> bool {
+	timer^ += delta
+	if timer^ >= interval {
+		timer^ -= interval
+		return true
+	}
+	return false
+}

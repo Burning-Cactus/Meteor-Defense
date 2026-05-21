@@ -82,12 +82,12 @@ BackgroundStar :: struct {
 	pos:      Vec2,
 	distance: f32,
 }
-background_stars: [1024]BackgroundStar
-background_size :: 10000
+background_stars: [2048]BackgroundStar
+background_size :: 20000
 init_background :: proc() {
 	for _, i in background_stars {
 		background_stars[i].pos = random_vector() * background_size / 2
-		background_stars[i].distance = vary(200, .8)
+		background_stars[i].distance = vary(100, .8)
 	}
 }
 update_background :: proc(delta: f32) {
@@ -108,7 +108,7 @@ update_background :: proc(delta: f32) {
 }
 draw_background :: proc() {
 	for s in background_stars {
-		brightness := 50 * camera.zoom / s.distance
+		brightness := 60 * camera.zoom / s.distance
 		if brightness > .1 do draw_dot(s.pos, state.scale_hint, .PRIMARY, brightness)
 	}
 
@@ -120,7 +120,7 @@ game_loop :: proc(delta: f32) {
 	}
 
 	handle_spawns(&state, delta)
-	state.comet_velocity = {1200, -8000}
+	state.comet_velocity = {10, -301}
 
 	state.comet.rot += 0.02 * delta
 
