@@ -132,7 +132,7 @@ play_sfx :: proc(name: string, settings:SFXSettings={}) {
 
 	volume := vary(settings.volume, settings.volume_variation)
 	pitch := vary(settings.pitch, settings.pitch_variation)
-	rl.SetSoundVolume(sound, volume)
+	rl.SetSoundVolume(sound, volume * sfx_volume_linear)
 	rl.SetSoundPitch(sound, pitch)
 	rl.PlaySound(sound)
 }
