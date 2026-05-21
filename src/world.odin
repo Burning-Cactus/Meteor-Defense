@@ -120,7 +120,7 @@ game_loop :: proc(delta: f32) {
 	}
 
 	handle_spawns(&state, delta)
-	state.comet_velocity = {100, -3001}
+	state.comet_velocity = {10, -301}
 
 	state.comet.rot += 0.02 * delta
 
