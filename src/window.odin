@@ -84,7 +84,13 @@ handle_camera_move :: proc(delta: f32) {
 paused: bool
 handle_paused :: proc() -> bool{
 	if rl.IsKeyPressed(.SPACE) do paused = !paused
-	if paused do draw_screen_message("PAUSED")
+	if paused {
+		msg_start, msg_end := draw_screen_message("PAUSED")
+		draw_settings({
+			(msg_start.x + msg_end.x)/2,
+			msg_end.y,
+		}, .TOP)
+	}
 	return paused
 }
 
@@ -239,7 +245,7 @@ reset_game :: proc() {
 }
 
 // --- Screen: Title ---
-
+slider_drag:Drag
 draw_title_screen :: proc(delta: f32) {
 	rl.BeginMode2D(camera)
 	draw_game_screen(&state)
@@ -251,17 +257,21 @@ draw_title_screen :: proc(delta: f32) {
 	padv:Vec2 = {f32(pad_x), f32(pad_y)}
 	draw_start:= padv
 	tx_rect:=draw_texture(logo_texture, {f32(pad_x), f32(pad_y)}, .TOP_LEFT, .WIDTH, 0.5, 600)
-	draw_start += tx_rect.y
+	draw_start.y += tx_rect.y
 
 	draw_text("jcomcl and BurningCactus",
 		{tx_rect.x/2 -padv.x, draw_start.y},
 	17, .CENTER)
 
+	draw_start.y += padv.y
+
 	btn_size := Vec2{240, 52}
-	if draw_button(padv + {padv.x ,tx_rect.y + padv.y*2.0}, btn_size, 0, rl.GetMousePosition(), "commence") {
+	if draw_button(draw_start + padv, btn_size, rl.GetMousePosition(), "commence") {
 		play_sfx("game_start")
 		set_screen(.Game)
 	}
+	draw_start.y += btn_size.y + padv.y *2
+	draw_settings(draw_start, .TOP_LEFT)
 }
 
 // --- Main Loop ---

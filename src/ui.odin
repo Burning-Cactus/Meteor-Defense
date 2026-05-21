@@ -101,6 +101,14 @@ is_box_hovered :: proc(start:Vec2, end:Vec2, cursor:Vec2) -> bool {
 is_box_clicked :: proc(start:Vec2, end:Vec2, cursor:Vec2) -> bool {
 	return is_box_hovered(start, end, cursor) && rl.IsMouseButtonPressed(.LEFT) && try_claim_click()
 }
+
+is_circle_hovered :: proc(center:Vec2, radius:f32, cursor:Vec2) -> bool {
+	return dist_squared(center, cursor) < radius*radius
+}
+is_circle_clicked :: proc(center:Vec2, radius:f32, cursor:Vec2) -> bool {
+	return is_circle_hovered(center, radius, cursor) && rl.IsMouseButtonPressed(.LEFT) && try_claim_click()
+}
+
 get_number_pressed ::proc() -> int {
 	for key, i in ([]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE, .ZERO}) {
 		if rl.IsKeyPressed(key) do return i
@@ -156,15 +164,20 @@ draw_text :: proc(text: cstring, pos: Vec2, font_size: i32, anchor: DrawDirectio
 	rl.DrawText(text, i32(top_left.x), i32(top_left.y), font_size, rl.WHITE)
 }
 
-draw_screen_message ::proc(msg:cstring) {
+draw_screen_message ::proc(msg:cstring) -> (start:Vec2, end:Vec2) {
 	w,h := screen_size()
 	max_width := w - min(20, w/12)
 	msg_size := min(64, max_width / i32(len(msg)))
 	actual_width := rl.MeasureText(msg, msg_size)
-	rl.DrawText(msg, (w-actual_width)/2, (h+msg_size)/2, msg_size, rl.LIGHTGRAY)
+	x := (w-actual_width)/2
+	y := (h+msg_size)/2
+	rl.DrawText(msg, x, y, msg_size, rl.LIGHTGRAY)
+	start = {f32(x), f32(y)}
+	end   = {f32(x + actual_width), f32(y + msg_size)}
+	return
 }
 
-draw_button :: proc(pos: Vec2, size: Vec2, rot: f32, cursor: Vec2, text: cstring = "", scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0, anchor: DrawDirection = .TOP_LEFT) -> bool {
+draw_button :: proc(pos: Vec2, size: Vec2, cursor: Vec2, text: cstring = "", scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY, brightness: f32 = 1.0, anchor: DrawDirection = .TOP_LEFT) -> bool {
 	center := pos - size * direction_offset(anchor) / 2
 	start := center - size / 2
 	end := center + size / 2
@@ -172,12 +185,51 @@ draw_button :: proc(pos: Vec2, size: Vec2, rot: f32, cursor: Vec2, text: cstring
 	if is_box_hovered(start, end, cursor) {
 		b *= 1.8
 	}
-	draw_rect(center, size, rot, scale_hint, col, b)
+	draw_rect(center, size, 0, scale_hint, col, b)
 	font_size: i32 = 20
 	text_w := rl.MeasureText(text, font_size)
 	rl.DrawText(text, i32(center.x) - text_w / 2, i32(center.y) - font_size / 2, font_size, modulate(col, b))
 	return is_box_clicked(start, end, cursor)
 }
+
+draw_slider_without_default_indicator ::proc(pos:Vec2, width:f32, val:^f32, min:f32, max:f32, cursor:Vec2, drag:^Drag, anchor:DrawDirection=.LEFT) {
+	do_culling = false
+	r::10
+	defer do_culling = true
+	assert(min < max)
+
+	end_offset:= -direction_offset(anchor) * width
+	end:= pos+end_offset
+
+	handle_pos:= pos + end_offset * progress(val^, min, max)
+	if !drag.active && is_box_clicked(pos - {r,r}, end+{r,r}, cursor) {
+		drag.start = cursor
+		drag.active = true
+	}
+	if drag.active {
+		if rl.IsMouseButtonReleased(.LEFT) {
+			drag.active = false
+		} else {
+			//delta:= cursor - drag.end
+			drag.end = cursor
+			val^ = min + (max-min) * (progress(cursor.x, pos.x, end.x))
+		}
+	}
+	val^ = clamp(val^, min, max)
+
+	handle_pos = pos + end_offset * progress(val^, min, max)
+	draw_line(pos, handle_pos, 1)
+	draw_circle(handle_pos, r, 1)
+
+	draw_line(handle_pos, end, 1, .PRIMARY, 0.3)
+}
+draw_slider_with_default_indicator ::proc(pos:Vec2, width:f32, val:^f32, min:f32, max:f32, default:f32, cursor:Vec2, drag:^Drag, anchor:DrawDirection=.LEFT) {
+	draw_slider_without_default_indicator(pos, width, val, min, max, cursor, drag, anchor)
+	notch_pos := pos.x + width*progress(default, min, max)
+	draw_line({notch_pos, pos.y + 5}, {notch_pos, pos.y + 10}, 1.0, brightness=0.5)
+}
+
+draw_slider ::proc{draw_slider_with_default_indicator, draw_slider_without_default_indicator}
 
 // --- Toolbar ---
 

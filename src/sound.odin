@@ -8,8 +8,8 @@ import "core:math"
 sfx_files := #load_directory("../assets/sfx")
 music_mp3_data := #load("../assets/music.mp3")
 
-music_volume: f32 = 1.0
-sfx_volume: f32 = 1.0
+music_volume_linear: f32 = 1.0
+sfx_volume_linear: f32 = 1.0
 
 MUSIC_BPM            :: f32(80.0)
 MUSIC_BEATS_PER_BAR  :: f32(4.0)
@@ -34,7 +34,7 @@ init_sfx :: proc() {
 
 	_music = rl.LoadMusicStreamFromMemory(".mp3", raw_data(music_mp3_data), i32(len(music_mp3_data)))
 	_music.looping = true
-	rl.SetMusicVolume(_music, music_volume)
+	rl.SetMusicVolume(_music, music_volume_linear)
 	rl.PlayMusicStream(_music)
 }
 
@@ -71,14 +71,14 @@ update_music :: proc() {
 			rl.StopMusicStream(_music)
 			rl.SeekMusicStream(_music, 0)
 			rl.PlayMusicStream(_music)
-			rl.SetMusicVolume(_music, music_volume)
+			rl.SetMusicVolume(_music, music_volume_linear)
 			_music_is_pending_restart = false
 		} else {
 			fade_t := (curr_time - _music_fade_start) / (_music_fade_end - _music_fade_start)
-			rl.SetMusicVolume(_music, music_volume * (1.0 - fade_t))
+			rl.SetMusicVolume(_music, music_volume_linear * (1.0 - fade_t))
 		}
 	} else {
-		rl.SetMusicVolume(_music, music_volume)
+		rl.SetMusicVolume(_music, music_volume_linear)
 		// loop points
 		overage := rl.GetMusicTimePlayed(_music) - _music_loop_end
 		if _music_loop_end >= 0 && overage > 0 && overage < MUSIC_SECONDS_PER_BAR {
