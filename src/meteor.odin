@@ -212,7 +212,7 @@ spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 		rot_speed = preset.spin,
 		value     = preset.reward,
 		power     = preset.power,
-		velocity  = get_normalized_vector_facing_target(pos, state.comet.pos + random_vector() * 2000) * preset.speed,
+		velocity  = get_normalized_vector_facing_target(pos, state.comet.pos + random_vector() * 500) * preset.speed,
 		type      = type,
 	},
 	)
