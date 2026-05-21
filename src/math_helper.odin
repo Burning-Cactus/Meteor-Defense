@@ -25,10 +25,21 @@ calculate_rotation_matrix :: proc(radians: f32) -> matrix[2, 2]f32 {
 	return linalg.matrix2_rotate(-radians)
 }
 
-get_normalized_vector_facing_target :: proc(base: Vec2, target: Vec2) -> Vec2 {
+get_normalized_vector_facing_vector :: proc(base: Vec2, target: Vec2) -> Vec2 {
 	difference := target - base
 	distance := math.sqrt(difference.x * difference.x + difference.y * difference.y)
 	return difference / distance
+}
+get_normalized_vector_facing_entity :: proc(base: Entity, target: Entity) -> Vec2 {
+	return get_normalized_vector_facing_vector(entity_world_pos(base), entity_world_pos(target))
+}
+get_normalized_vector_facing_target :: proc{get_normalized_vector_facing_entity, get_normalized_vector_facing_vector}
+
+acceleration_due_to_gravity :: proc(a: Entity, a_mass:f32, b: Entity, b_mass:f32) -> Vec2{
+	r_sqr:= dist_squared(entity_world_pos(a), entity_world_pos(b))
+	v:= get_normalized_vector_facing_entity(a, b)
+	G::3000
+	return v * G * a_mass * b_mass / r_sqr
 }
 
 vec_angle :: proc(v: Vec2) -> f32 {

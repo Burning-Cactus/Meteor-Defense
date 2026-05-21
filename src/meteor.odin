@@ -45,7 +45,7 @@ Meteor :: struct {
 
 // These are somewhat high-level and open to interpretation
 MeteorPreset :: struct {
-	speed, spin, size, health, power: f32,
+	speed, spin, size, health, power, attraction: f32,
 	reward:                           u32,
 	death_sfx:                        string,
 }
@@ -56,14 +56,17 @@ meteor_presets := [MeteorType]MeteorPreset {
 		size = 16,
 		health = 1.0,
 		power = 0.2,
-		reward = 2},
+		reward = 2,
+		attraction = 1,
+	},
 	.METEOROID = {
 		speed = 110,
 		spin = 0.2,
 		size = 24,
 		health = 4.0,
 		power = 0.1,
-		reward = 1},
+		reward = 1,
+	},
 	.ASTEROID = {
 		speed = 55,
 		spin = 0.1,
@@ -106,7 +109,6 @@ meteor_on_death :: proc(m: ^Meteor, state: ^GameState) {
 		play_sfx(sfx)
 	}
 	play_sfx("hit")
-	//spawn_sparks(state, m.pos, 10, 220, 0.7)
 	if m.type > .SHOOTING_STAR {
 		spawn_exploded(
 			state,
@@ -127,6 +129,10 @@ update_meteors :: proc(state: ^GameState, delta: f32) {
 	meteorCount := len(state.meteors)
 	for i in 0 ..< meteorCount {
 		meteor := &state.meteors[i]
+		preset := meteor_presets[meteor.type]
+		if preset.attraction != 0 {
+			meteor.velocity += acceleration_due_to_gravity(meteor, preset.attraction, state.comet, 10000) * delta
+		}
 		update_entity(meteor, delta)
 		if state.comet.alive && check_collision(meteor^, state.comet) {
 			hurt_comet(meteor.power)
@@ -206,7 +212,7 @@ spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 		rot_speed = preset.spin,
 		value     = preset.reward,
 		power     = preset.power,
-		velocity  = get_normalized_vector_facing_target(pos, state.comet.pos) * preset.speed,
+		velocity  = get_normalized_vector_facing_target(pos, state.comet.pos + random_vector() * 2000) * preset.speed,
 		type      = type,
 	},
 	)
