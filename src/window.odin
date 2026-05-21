@@ -330,6 +330,25 @@ update :: proc() {
 		}
 		handle_camera_move(delta)
 
+		screen_end := screen_vec()
+		screen_center := screen_end / 2
+		for m in state.meteors {
+			inset:f32: 50
+			ms := rl.GetWorldToScreen2D(m.pos, camera)
+			if ms.x >= 0 && ms.x <= screen_end.x &&
+			   ms.y >= 0 && ms.y <= screen_end.y {
+				continue
+			}
+			dir := ms - screen_center
+			if dir == {} do continue
+			tx: f32 = math.F32_MAX
+			ty: f32 = math.F32_MAX
+			if dir.x > 0 do tx = (screen_end.x - inset - screen_center.x) / dir.x
+			else if dir.x < 0 do tx = (inset - screen_center.x) / dir.x
+			if dir.y > 0 do ty = (screen_end.y - inset - screen_center.y) / dir.y
+			else if dir.y < 0 do ty = (inset - screen_center.y) / dir.y
+			draw_dot(screen_center + dir * min(tx, ty), 1.0, .PRIMARY, 2.0-dist_squared({tx,ty}, ms) * 0.00001)
+		}
 
 		rl.BeginMode2D(camera)
 		draw_game_screen(&state)

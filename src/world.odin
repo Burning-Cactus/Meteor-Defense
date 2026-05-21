@@ -108,7 +108,7 @@ update_background :: proc(delta: f32) {
 }
 draw_background :: proc() {
 	for s in background_stars {
-		brightness := 60 * camera.zoom / s.distance
+		brightness := 40 * camera.zoom / s.distance
 		if brightness > .1 do draw_dot(s.pos, state.scale_hint, .PRIMARY, brightness)
 	}
 
