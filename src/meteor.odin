@@ -2,6 +2,7 @@ package game
 
 import "core:math"
 import "core:math/rand"
+import "core:fmt"
 import rl "vendor:raylib"
 
 MeteorType :: enum {
@@ -72,7 +73,7 @@ meteor_presets := [MeteorType]MeteorPreset {
 		speed = 55,
 		spin = 0.1,
 		size = 128,
-		health = 64.0,
+		health = 18.0,
 		power = 5.0,
 		reward = 0,
 		death_sfx = "asteroid_hit",
@@ -260,7 +261,7 @@ star_storm :: proc(state: ^GameState, delta: f32) {
 	storm_velocity:= Vec2{400, 50}
 	relative_normal := (normalize(state.comet_velocity - storm_velocity))
 	spawn_pos := relative_normal * spawn_radius + 500
-	for &m in spawn_shower(state, spawn_pos, 6000, -relative_normal, .SHOOTING_STAR, 10, delta) {
+	for &m in spawn_shower(state, spawn_pos, 6000, -relative_normal, .SHOOTING_STAR, 30, delta) {
 		m.velocity += storm_velocity
 		m.velocity += random_vector() * 145
 	}
@@ -282,8 +283,8 @@ stages:[]f32 = {
 	60, // first meteoroids
 	90, // first asteroids
 	110, //star storm begins
-	120, //breathing room
-	130, // big clusters
+	130, //breathing room
+	150, // big clusters
 	260, // asteroid field
 	350, // game end
 }
@@ -299,6 +300,7 @@ handle_spawns :: proc(state: ^GameState, delta: f32) {
 
 	if t > stages[state.stage]{
 		state.stage += 1
+		fmt.printfln("advanced to stage %d", state.stage)
 		if state.stage == 7 {
 			asteroid_field(state)
 		}
@@ -312,8 +314,8 @@ handle_spawns :: proc(state: ^GameState, delta: f32) {
 
 	// Stage 2: 
 	if state.stage >= 2 {
-		meteoroid_shower_interval := 10-6*progress(t, 70, 90)
-		meteoroid_cluster_chance := 0.2 - 0.2*progress(t, 85, 110)
+		meteoroid_shower_interval := 4-3*progress(t, stages[2], stages[3])
+		meteoroid_cluster_chance := 0.4 - 0.4*progress(t, stages[2]+10, stages[4])
 		for m in spawn_shower(state, comet_normal * spawn_radius, spawn_radius, -comet_normal, .METEOROID, 1/meteoroid_shower_interval, delta) {
 			cluster_size:= int(meteoroid_cluster_chance * 70 * rand.float32())
 			if cluster_size > 1 && rand.float32() < meteoroid_cluster_chance do transform_into_cluster(state, m, cluster_size)
@@ -321,13 +323,13 @@ handle_spawns :: proc(state: ^GameState, delta: f32) {
 	}
 
 	// Stage 3: asteroids join the clusters (t=70-82), 40% chance of asteroid
-	if state.stage >= 3 {
+	if state.stage > 3 {
 		spawn_shower(state, comet_normal*spawn_radius, spawn_radius, -comet_normal, .ASTEROID, 0.2, delta)
 	}
 
 	// Stage 4: the star storm (t=82-130)
 	if state.stage == 4 {
-		if t < stages[4]-10 do return
+		if t > stages[5]-10 do return
 		star_storm(state, delta)
 	}
 
