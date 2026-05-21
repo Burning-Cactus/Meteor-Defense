@@ -203,7 +203,7 @@ spawn_meteor :: proc(state: ^GameState, pos: Vec2, type: MeteorType) {
 	&state.meteors,
 	pos,
 	Meteor {
-		col       = .RED,
+		brightness=0.5,
 		on_death  = meteor_on_death,
 		draw      = draw_meteor,
 		shape     = Circle{preset.size}, //TODO: support polygonal asteroids
