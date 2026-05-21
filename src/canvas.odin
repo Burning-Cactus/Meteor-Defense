@@ -154,6 +154,38 @@ handle_highlighted_shape :: proc(ref: ShapeRef, handle: HandleMode) {
 	}
 }
 
+set_drawable_color :: proc(d: ^Drawable, col: ThemeColor) {
+	switch &v in d^ {
+	case DrawshapePro:    v.col = col
+	case Drawshape:       d^ = DrawshapePro{drawshape = v, col = col, brightness = 1.0}
+	case ^DrawshapeGroup:
+	}
+}
+
+set_drawable_brightness :: proc(d: ^Drawable, b: f32) {
+	switch &v in d^ {
+	case DrawshapePro:    v.brightness = b
+	case Drawshape:       d^ = DrawshapePro{drawshape = v, col = .PRIMARY, brightness = b}
+	case ^DrawshapeGroup:
+	}
+}
+
+apply_color_to_selection :: proc(col: ThemeColor) {
+	if len(selected_shapes) > 0 {
+		for ref in selected_shapes do set_drawable_color(ref.group.contents[ref.idx], col)
+	} else if highlighted_found {
+		set_drawable_color(highlighted_ref.group.contents[highlighted_ref.idx], col)
+	}
+}
+
+apply_brightness_to_selection :: proc(b: f32) {
+	if len(selected_shapes) > 0 {
+		for ref in selected_shapes do set_drawable_brightness(ref.group.contents[ref.idx], b)
+	} else if highlighted_found {
+		set_drawable_brightness(highlighted_ref.group.contents[highlighted_ref.idx], b)
+	}
+}
+
 move_drawable :: proc(d: ^Drawable, delta: Vec2, move_whole: bool, handle: HandleMode) {
 	switch _ in d^ {
 	case Drawshape:
@@ -202,9 +234,11 @@ bone_groups:          [10]^DrawshapeGroup
 active_bone_group:    ^DrawshapeGroup
 canvas_skeleton:      Skeleton
 canvas_ref_skeleton:  Skeleton
-canvas_initialized:   bool
-selected_color:     ThemeColor = .PRIMARY
-pose_drag:          Drag = {button = rl.MouseButton.LEFT}
+canvas_initialized:  bool
+selected_color:      ThemeColor = .PRIMARY
+draw_brightness:     f32 = 1.0
+draw_brightness_drag: Drag
+pose_drag:           Drag = {button = rl.MouseButton.LEFT}
 pose_drag_bone_idx: int
 
 NUM_THEME_COLORS :: int(max(ThemeColor)) + 1
@@ -309,23 +343,84 @@ init_canvas :: proc() {
 
 CanvasTool :: struct {
 	name:         cstring,
-	drag_handler: proc(d: Drag) -> Drawable,
+	drag_handler: proc(d: ^Drag) -> Drawable,
 }
-shape_tool_drag_handler :: proc(d: Drag, shape: Drawshape_Type) -> Drawable {
+shape_tool_drag_handler :: proc(d: ^Drag, shape: Drawshape_Type) -> Drawable {
 	out := DrawshapePro {
 		drawshape  = {shape, d.start, d.end},
 		col        = selected_color,
-		brightness = 1.0,
+		brightness = draw_brightness,
 	}
 	draw_shape(out, state.scale_hint)
 	return out
 }
-POSE_TOOL_IDX :: 3
+shape_in_box :: proc(s: Drawshape, a: Vec2, b: Vec2) -> bool {
+	switch s.type {
+	case .DOT:    return is_box_hovered(a, b, s.end)
+	case .LINE:   return is_box_hovered(a, b, s.start) && is_box_hovered(a, b, s.end)
+	case .CIRCLE: return is_box_hovered(a, b, s.start)
+	}
+	return false
+}
+
+collect_shapes_in_box :: proc(group: ^DrawshapeGroup, a: Vec2, b: Vec2, result: ^[dynamic]ShapeRef) {
+	for i in 0 ..< len(group.contents) {
+		item := group.contents[i]
+		switch v in item^ {
+		case ^DrawshapeGroup: collect_shapes_in_box(v, a, b, result)
+		case Drawshape:       if shape_in_box(v,           a, b) do append(result, ShapeRef{group, i})
+		case DrawshapePro:    if shape_in_box(v.drawshape, a, b) do append(result, ShapeRef{group, i})
+		}
+	}
+}
+
+select_drag_handler :: proc(d: ^Drag) -> Drawable {
+	draw_polygon([]Vec2{
+		d.start,
+		{d.start.x, d.end.y},
+		d.end,
+		{d.end.x, d.start.y},
+	}, state.scale_hint, .BLUE, brightness=0.5)
+
+	box_shapes: [dynamic]ShapeRef
+	defer delete(box_shapes)
+	collect_shapes_in_box(&root, d.start, d.end, &box_shapes)
+	if drag_ended(d) && dist_squared(d.start, d.end) < 10 && highlighted_found{
+		clear(&box_shapes)
+		append(&box_shapes, highlighted_ref)
+	}
+
+	shift := rl.IsKeyDown(.LEFT_SHIFT) || rl.IsKeyDown(.RIGHT_SHIFT)
+	alt   := rl.IsKeyDown(.LEFT_ALT)   || rl.IsKeyDown(.RIGHT_ALT)
+
+	if shift {
+		outer: for s in box_shapes {
+			for existing in selected_shapes do if existing == s do continue outer
+			append(&selected_shapes, s)
+		}
+	} else if alt {
+		for s in box_shapes {
+			for i := len(selected_shapes) - 1; i >= 0; i -= 1 {
+				if selected_shapes[i] == s {
+					unordered_remove(&selected_shapes, i)
+					break
+				}
+			}
+		}
+	} else {
+		clear(&selected_shapes)
+		append(&selected_shapes, ..box_shapes[:])
+	}
+	return {}
+}
+SELECT_TOOL_IDX :: 0
+POSE_TOOL_IDX   :: 4
 
 canvas_tools: []CanvasTool = {
-	{"Dot",    proc(d: Drag) -> Drawable { return shape_tool_drag_handler(d, .DOT)    }},
-	{"Line",   proc(d: Drag) -> Drawable { return shape_tool_drag_handler(d, .LINE)   }},
-	{"Circle", proc(d: Drag) -> Drawable { return shape_tool_drag_handler(d, .CIRCLE) }},
+	{"Select", select_drag_handler},
+	{"Dot",    proc(d: ^Drag) -> Drawable { return shape_tool_drag_handler(d, .DOT)    }},
+	{"Line",   proc(d: ^Drag) -> Drawable { return shape_tool_drag_handler(d, .LINE)   }},
+	{"Circle", proc(d: ^Drag) -> Drawable { return shape_tool_drag_handler(d, .CIRCLE) }},
 	{"Pose",   nil},
 }
 
@@ -363,7 +458,10 @@ draw_canvas_toolbar :: proc() {
 	   i != -1 {
 		selected_tool_idx = i
 	}
-	draw_dot({f32(rl.GetScreenWidth()) - 20, 20}, 0.3, selected_color, 5.0)
+	sw := f32(rl.GetScreenWidth())
+	dot_pos := Vec2{sw - 20, 20}
+	draw_slider({dot_pos.x - 88, dot_pos.y}, 80, &draw_brightness, 0, 3, 1.0, rl.GetMousePosition(), &draw_brightness_drag)
+	draw_dot(dot_pos, 0.3, selected_color, draw_brightness)
 }
 
 canvas_loop :: proc(delta: f32) {
@@ -402,6 +500,7 @@ canvas_loop :: proc(delta: f32) {
 	}
 
 	if drag_ended(&shape_drag) {
+		shape_drag.active = false
 		clear(&selected_shapes)
 	}
 
@@ -411,6 +510,10 @@ canvas_loop :: proc(delta: f32) {
 			state.cursor,
 			select_threshold,
 		)
+	}
+	for ref in selected_shapes {
+		shape:= ref.group.contents[ref.idx]^
+		draw_shape(shape, state.scale_hint/3)
 	}
 
 	if selected_tool_idx == POSE_TOOL_IDX {
@@ -443,21 +546,27 @@ canvas_loop :: proc(delta: f32) {
 		}
 		if draw_drag.active {
 			draw_drag.end = state.cursor
-			drag_handler(draw_drag)
+			drag_handler(&draw_drag)
 		}
 		if drag_ended(&draw_drag) {
-			ptr  := new(Drawable)
-			ptr^  = drag_handler(draw_drag)
-			append(&active_bone_group.contents, ptr)
+			result := drag_handler(&draw_drag)
+			if result != nil {
+				ptr  := new(Drawable)
+				ptr^  = result
+				append(&active_bone_group.contents, ptr)
+			}
 		}
 	}
 	if rl.IsKeyPressed(.RIGHT_BRACKET) {
 		selected_color = ThemeColor((int(selected_color) + 1) % NUM_THEME_COLORS)
+		if selected_tool_idx == SELECT_TOOL_IDX do apply_color_to_selection(selected_color)
 	}
 	if rl.IsKeyPressed(.LEFT_BRACKET) {
-		selected_color = ThemeColor(
-			(int(selected_color) - 1 + NUM_THEME_COLORS) % NUM_THEME_COLORS,
-		)
+		selected_color = ThemeColor((int(selected_color) - 1 + NUM_THEME_COLORS) % NUM_THEME_COLORS)
+		if selected_tool_idx == SELECT_TOOL_IDX do apply_color_to_selection(selected_color)
+	}
+	if selected_tool_idx == SELECT_TOOL_IDX && draw_brightness_drag.active {
+		apply_brightness_to_selection(draw_brightness)
 	}
 
 	if rl.IsKeyPressed(.B) {

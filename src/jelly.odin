@@ -5,7 +5,7 @@ import "core:math"
 
 SHAPES_JSON :: #load("../assets/shapes.json")
 
-jelly_proportions := SkeletonProportions{
+reference_proportions := SkeletonProportions{
 	torso_len      = 32,
 	head           = 0.7,
 	shoulder_width = 0.5,
@@ -14,6 +14,17 @@ jelly_proportions := SkeletonProportions{
 	lower_arm      = 0.55,
 	upper_leg      = 0.5,
 	lower_leg      = 0.9,
+}
+
+jelly_proportions := SkeletonProportions{
+	torso_len      = 32,
+	head           = 0.76,
+	shoulder_width = 0.5,
+	hip_width      = 0.4,
+	upper_arm      = 0.65,
+	lower_arm      = 0.55,
+	upper_leg      = 0.5,
+	lower_leg      = 1,
 }
 
 jelly_pose_idle := Pose{
@@ -30,55 +41,55 @@ jelly_pose_idle := Pose{
 }
 
 jelly_pose_left := Pose{
-	torso       = -1.86465657,
-	head        = -2.1318326,
-	upper_arm_r =  0.26341823,
-	lower_arm_r =  0.55728239,
-	upper_arm_l =  2.929299,
-	lower_arm_l = -2.8876944,
-	upper_leg_r =  0.89294946,
-	lower_leg_r =  0.7890843,
-	upper_leg_l =  1.34022498,
-	lower_leg_l =  0.91807669,
+	torso       = -1.651193,
+	head        = -1.56247759,
+	upper_arm_r = 0.83296764,
+	lower_arm_r = 0.6377152,
+	upper_arm_l = 2.447436,
+	lower_arm_l = 1.9260194,
+	upper_leg_r = 1.2527452,
+	lower_leg_r = 0.96632117,
+	upper_leg_l = 1.9234607,
+	lower_leg_l = 1.1782875,
 }
 
 jelly_pose_right := Pose{
-	torso       = -1.36135197,
-	head        = -1.3238679,
-	upper_arm_r =  1.21756279,
-	lower_arm_r =  0.84316164,
-	upper_arm_l = -3.0783021,
-	lower_arm_l = -3.0506518,
-	upper_leg_r =  1.59599459,
-	lower_leg_r =  2.3246145,
-	upper_leg_l =  2.411772,
-	lower_leg_l =  1.86991906,
+	torso       = -1.53360569,
+	head        = -1.54559577,
+	upper_arm_r = 0.86468863,
+	lower_arm_r = 0.6141762,
+	upper_arm_l = 2.336658,
+	lower_arm_l = 2.2099695,
+	upper_leg_r = 1.2527452,
+	lower_leg_r = 1.8043742,
+	upper_leg_l = 1.86781418,
+	lower_leg_l = 2.1940176,
 }
 
 jelly_pose_up := Pose{
-	torso       = -1.5610718,
-	head        = -1.42740119,
-	upper_arm_r = -0.9958912,
-	lower_arm_r = -1.3936832,
-	upper_arm_l = -1.81823039,
-	lower_arm_l = -1.5819522,
-	upper_leg_r =  1.6928267,
-	lower_leg_r =  1.6178542,
-	upper_leg_l =  1.3938068,
-	lower_leg_l =  1.5840915,
+	torso       = -1.57063508,
+	head        = -1.39609659,
+	upper_arm_r = 1.45261216,
+	lower_arm_r = 1.3694727,
+	upper_arm_l = 1.5631721,
+	lower_arm_l = 1.69691479,
+	upper_leg_r = 1.66476119,
+	lower_leg_r = 1.5011584,
+	upper_leg_l = 1.36328578,
+	lower_leg_l = 1.5625107,
 }
 
 jelly_pose_down := Pose{
-	torso       = -1.23640227,
-	head        = -0.84925079,
-	upper_arm_r =  0.26112399,
-	lower_arm_r = -0.189163938,
-	upper_arm_l =  2.8379047,
-	lower_arm_l =  3.0971854,
-	upper_leg_r = -0.16934022,
-	lower_leg_r =  2.2960322,
-	upper_leg_l =  0.8307476,
-	lower_leg_l =  2.7116654,
+	torso       = -1.57063508,
+	head        = -1.9032527,
+	upper_arm_r = 1.00991368,
+	lower_arm_r = 0.65024954,
+	upper_arm_l = 1.93657577,
+	lower_arm_l = 2.393913,
+	upper_leg_r = 1.35110998,
+	lower_leg_r = 1.74126148,
+	upper_leg_l = 1.6941833,
+	lower_leg_l = 1.1572978,
 }
 
 // jelly_idle_pose is the reference pose used by the canvas editor — keep in sync with jelly_pose_idle.
@@ -124,7 +135,7 @@ jelly_bone_shapes: [10][]DrawshapePro
 jelly_loaded:      bool
 
 load_jelly_shapes :: proc() {
-	ref_sk    := build_skeleton({0, 0}, jelly_proportions, jelly_pose_idle)
+	ref_sk    := build_skeleton({0, 0}, reference_proportions, jelly_pose_idle)
 	ref_bones := skeleton_bones(ref_sk)
 
 	root_d, ok := drawable_decode(SHAPES_JSON)

@@ -53,7 +53,7 @@ modulate_themecolor :: proc(col: ThemeColor, brightness:f32=1.0) -> rl.Color {
 	return modulate_rgb(theme[col], brightness)
 }
 modulate_rgb :: proc(rgb: [3]u8, brightness:f32) -> rl.Color {
-	alpha := cast(u8)(draw_opacity * brightness)
+	alpha := cast(u8)(min(draw_opacity * brightness, 255))
 	return {rgb.r, rgb.g, rgb.b, alpha}
 }
 modulate :: proc{modulate_themecolor, modulate_rgb}
