@@ -202,6 +202,7 @@ GameState :: struct {
 	cursor:            Vec2,
 	scale_hint:        f32,
 	difficulty_scale:  f32,
+	stage:u8,
 	max_zoom:          f32,
 }
 
@@ -242,6 +243,8 @@ reset_game :: proc() {
 	camera.offset = Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
 	camera.target = state.player.pos
 	camera.zoom = BASE_CAMERA_ZOOM * screen_size_ratio()
+
+	state.gameTime = 0 // TESTING
 }
 
 // --- Screen: Title ---
@@ -358,7 +361,7 @@ update :: proc() {
 			draw_screen_message(msg)
 		} else {
 			rl.DrawText(
-				rl.TextFormat("Time left: %.0f seconds", state.timeRemaining),
+				rl.TextFormat("Game Time: %.0f seconds", state.gameTime),
 				rl.GetScreenWidth() - 240,
 				10,
 				20,
