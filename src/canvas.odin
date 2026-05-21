@@ -1,5 +1,6 @@
 package game
 
+import "core:fmt"
 import "core:math"
 import "utils"
 import rl "vendor:raylib"
@@ -197,11 +198,14 @@ BONE_NAMES := [10]string {
 	"lower_leg_l",
 }
 
-bone_groups: [10]^DrawshapeGroup
-active_bone_group: ^DrawshapeGroup
-canvas_skeleton: Skeleton
-canvas_initialized: bool
-selected_color: ThemeColor = .PRIMARY
+bone_groups:          [10]^DrawshapeGroup
+active_bone_group:    ^DrawshapeGroup
+canvas_skeleton:      Skeleton
+canvas_ref_skeleton:  Skeleton
+canvas_initialized:   bool
+selected_color:     ThemeColor = .PRIMARY
+pose_drag:          Drag = {button = rl.MouseButton.LEFT}
+pose_drag_bone_idx: int
 
 NUM_THEME_COLORS :: int(max(ThemeColor)) + 1
 
@@ -220,23 +224,58 @@ skeleton_bones :: proc(sk: Skeleton) -> [10]Bone {
 	}
 }
 
-nearest_bone_group :: proc(pos: Vec2) -> ^DrawshapeGroup {
-	bones := skeleton_bones(canvas_skeleton)
+nearest_bone_idx :: proc(pos: Vec2) -> int {
+	bones     := skeleton_bones(canvas_skeleton)
 	best_dist: f32 = math.F32_MAX
-	best_idx := 0
+	best_idx  := 0
 	for b, i in bones {
 		closest := closest_point_on_segment(pos, b.root, b.tip)
 		d := dist_squared(pos, closest)
 		if d < best_dist {
 			best_dist = d
-			best_idx = i
+			best_idx  = i
 		}
 	}
-	return bone_groups[best_idx]
+	return best_idx
+}
+
+nearest_bone_group :: proc(pos: Vec2) -> ^DrawshapeGroup {
+	return bone_groups[nearest_bone_idx(pos)]
+}
+
+pose_angle_ptrs :: proc(pose: ^Pose) -> [10]^f32 {
+	return {
+		&pose.torso,
+		&pose.head,
+		&pose.upper_arm_r, &pose.lower_arm_r,
+		&pose.upper_arm_l, &pose.lower_arm_l,
+		&pose.upper_leg_r, &pose.lower_leg_r,
+		&pose.upper_leg_l, &pose.lower_leg_l,
+	}
+}
+
+draw_group_on_bone :: proc(group: ^DrawshapeGroup, ref_bone: Bone, curr_bone: Bone, scale_hint: f32) {
+	for item in group.contents {
+		switch v in item^ {
+		case Drawshape:
+			ws := v
+			ws.start = bone_to_world(curr_bone, world_to_bone(ref_bone, v.start))
+			ws.end   = bone_to_world(curr_bone, world_to_bone(ref_bone, v.end))
+			draw_shape(ws, scale_hint)
+		case DrawshapePro:
+			ws := v
+			ws.start = bone_to_world(curr_bone, world_to_bone(ref_bone, v.start))
+			ws.end   = bone_to_world(curr_bone, world_to_bone(ref_bone, v.end))
+			draw_shape_pro(ws, scale_hint)
+		case ^DrawshapeGroup:
+			draw_group_on_bone(v, ref_bone, curr_bone, scale_hint)
+		}
+	}
 }
 
 init_canvas :: proc() {
-	canvas_skeleton = build_skeleton({0, 0}, jelly_proportions, jelly_idle_pose)
+	canvas_ref_skeleton = build_skeleton({0, 0}, jelly_proportions, jelly_idle_pose)
+	canvas_skeleton     = canvas_ref_skeleton
 	for i in 0 ..< 10 {
 		g := new(DrawshapeGroup)
 		g.name = BONE_NAMES[i]
@@ -281,13 +320,14 @@ shape_tool_drag_handler :: proc(d: Drag, shape: Drawshape_Type) -> Drawable {
 	draw_shape(out, state.scale_hint)
 	return out
 }
-canvas_tools: []CanvasTool = {{"Dot", proc(d: Drag) -> Drawable {
-			return shape_tool_drag_handler(d, .DOT)
-		}}, {"Line", proc(d: Drag) -> Drawable {
-			return shape_tool_drag_handler(d, .LINE)
-		}}, {"Circle", proc(d: Drag) -> Drawable {
-			return shape_tool_drag_handler(d, .CIRCLE)
-		}}}
+POSE_TOOL_IDX :: 3
+
+canvas_tools: []CanvasTool = {
+	{"Dot",    proc(d: Drag) -> Drawable { return shape_tool_drag_handler(d, .DOT)    }},
+	{"Line",   proc(d: Drag) -> Drawable { return shape_tool_drag_handler(d, .LINE)   }},
+	{"Circle", proc(d: Drag) -> Drawable { return shape_tool_drag_handler(d, .CIRCLE) }},
+	{"Pose",   nil},
+}
 
 
 draw_canvas_tool :: proc(
@@ -333,6 +373,8 @@ canvas_loop :: proc(delta: f32) {
 	}
 	canvas_skeleton = build_skeleton({0, 0}, jelly_proportions, jelly_idle_pose)
 	draw_skeleton_debug(canvas_skeleton, state.scale_hint, .PRIMARY, 0.3)
+	ref_bones  := skeleton_bones(canvas_ref_skeleton)
+	curr_bones := skeleton_bones(canvas_skeleton)
 
 	select_threshold := 20.0 / state.scale_hint
 
@@ -371,32 +413,62 @@ canvas_loop :: proc(delta: f32) {
 		)
 	}
 
-	draw_shape_group(root, state.scale_hint)
-	if highlighted_found do handle_highlighted_shape(highlighted_ref, highlighted_handle)
+	if selected_tool_idx == POSE_TOOL_IDX {
+		for i in 0 ..< 10 {
+			draw_group_on_bone(bone_groups[i], ref_bones[i], curr_bones[i], state.scale_hint)
+		}
+	} else {
+		draw_shape_group(root, state.scale_hint)
+		if highlighted_found do handle_highlighted_shape(highlighted_ref, highlighted_handle)
+	}
 
 	// use tool
-	drag_handler := canvas_tools[selected_tool_idx].drag_handler
-	if !click_claimed && drag_started(&draw_drag) {
-		click_claimed = true
-		draw_drag.start = state.cursor
-		active_bone_group = nearest_bone_group(state.cursor)
+	if selected_tool_idx == POSE_TOOL_IDX {
+		if !click_claimed && drag_started(&pose_drag) {
+			click_claimed      = true
+			pose_drag_bone_idx = nearest_bone_idx(state.cursor)
+		}
+		if pose_drag.active {
+			bone    := skeleton_bones(canvas_skeleton)[pose_drag_bone_idx]
+			angles  := pose_angle_ptrs(&jelly_idle_pose)
+			angles[pose_drag_bone_idx]^ = angle_facing(bone.root, state.cursor)
+		}
+		if drag_ended(&pose_drag) {}
+	} else {
+		drag_handler := canvas_tools[selected_tool_idx].drag_handler
+		if !click_claimed && drag_started(&draw_drag) {
+			click_claimed     = true
+			draw_drag.start   = state.cursor
+			active_bone_group = nearest_bone_group(state.cursor)
+		}
+		if draw_drag.active {
+			draw_drag.end = state.cursor
+			drag_handler(draw_drag)
+		}
+		if drag_ended(&draw_drag) {
+			ptr  := new(Drawable)
+			ptr^  = drag_handler(draw_drag)
+			append(&active_bone_group.contents, ptr)
+		}
 	}
-	if draw_drag.active {
-		draw_drag.end = state.cursor
-		drag_handler(draw_drag)
-	}
-	if drag_ended(&draw_drag) {
-		ptr := new(Drawable)
-		ptr^ = drag_handler(draw_drag)
-		append(&active_bone_group.contents, ptr)
-	}
-
 	if rl.IsKeyPressed(.RIGHT_BRACKET) {
 		selected_color = ThemeColor((int(selected_color) + 1) % NUM_THEME_COLORS)
 	}
 	if rl.IsKeyPressed(.LEFT_BRACKET) {
 		selected_color = ThemeColor(
 			(int(selected_color) - 1 + NUM_THEME_COLORS) % NUM_THEME_COLORS,
+		)
+	}
+
+	if rl.IsKeyPressed(.B) {
+		p := jelly_idle_pose
+		fmt.printf(
+			"\ttorso       = %v,\n\thead        = %v,\n\tupper_arm_r = %v,\n\tlower_arm_r = %v,\n\tupper_arm_l = %v,\n\tlower_arm_l = %v,\n\tupper_leg_r = %v,\n\tlower_leg_r = %v,\n\tupper_leg_l = %v,\n\tlower_leg_l = %v,\n",
+			p.torso, p.head,
+			p.upper_arm_r, p.lower_arm_r,
+			p.upper_arm_l, p.lower_arm_l,
+			p.upper_leg_r, p.lower_leg_r,
+			p.upper_leg_l, p.lower_leg_l,
 		)
 	}
 
