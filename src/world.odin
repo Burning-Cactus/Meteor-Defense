@@ -9,6 +9,8 @@ cursor_entity :: proc() -> Entity {
 	return Entity{pos = state.cursor, alive = true, shape = Circle{32}}
 }
 
+// --- Comet ---
+
 star_heart_polygon :: proc(i: int) -> (segments: [5][4]Vec2) {
 	comet := state.comet
 	star := star_polygon(entity_world_pos(comet), entity_world_rot(comet), 5, 50, 0.5)
@@ -78,6 +80,8 @@ draw_comet :: proc(comet: ^Entity, state: ^GameState) {
 	draw_comet_heart(comet, state)
 }
 
+// --- Background ---
+
 BackgroundStar :: struct {
 	pos:      Vec2,
 	distance: f32,
@@ -94,26 +98,68 @@ update_background :: proc(delta: f32) {
 	for &s in background_stars {
 		s.pos -= state.comet_velocity * delta / s.distance
 
+	}
+}
+draw_background :: proc() {
+	for &s in background_stars {
 		start, end := get_frustum()
 		margin :: 10
 		start.x -= margin * camera.zoom
 		start.y -= margin * camera.zoom
 		end.x -= margin * camera.zoom
 		end.y -= margin * camera.zoom
-		if s.pos.x < start.x do s.pos.x += background_size
-		if s.pos.y < start.y do s.pos.y += background_size
-		if s.pos.x > end.x do s.pos.x -= background_size
-		if s.pos.y > end.y do s.pos.y -= background_size
-	}
-}
-draw_background :: proc() {
-	for s in background_stars {
+		if s.pos.x < start.x {
+			s.pos.x += background_size
+			continue
+		} else if s.pos.x > end.x {
+			s.pos.x -= background_size
+			continue
+		} if s.pos.y < start.y {
+			s.pos.y += background_size
+			continue
+		} else if s.pos.y > end.y {
+			s.pos.y -= background_size
+			continue
+		}
+
 		brightness := 40 * camera.zoom / s.distance
 		if brightness > .1 do draw_dot(s.pos, state.scale_hint, .PRIMARY, brightness)
 	}
 
 }
-// I'm thinking particles can be handled later with an arena.
+
+// --- Player ---
+
+move_toward :: proc(f, targ, delta: f32) -> f32 {
+	diff := targ - f
+	if abs(diff) <= delta do return targ
+	return f + math.sign(diff) * delta
+}
+handle_input :: proc(delta: f32) {
+	player := &state.player
+
+	playerSpeed :: 100
+	playerAccel :: 300
+
+	target_x: f32
+	target_y: f32
+	if rl.IsKeyDown(.A) do target_x -= 1
+	if rl.IsKeyDown(.D) do target_x += 1
+	if rl.IsKeyDown(.W) do target_y -= 1
+	if rl.IsKeyDown(.S) do target_y += 1
+
+	player.velocity.x = move_toward(player.velocity.x, target_x * playerSpeed, playerAccel * delta)
+	player.velocity.y = move_toward(player.velocity.y, target_y * playerSpeed, playerAccel * delta)
+	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) && try_claim_click() {
+		bulletSpeed :: 500
+		bullet_normal := unit_vector(player.rot)
+		spawn_bullet(&state, player.pos + bullet_normal * 30, bullet_normal * bulletSpeed)
+	}
+}
+
+
+// --- Main ---
+
 game_loop :: proc(delta: f32) {
 	if state.buildMode {
 		update_build_mode(&state)
@@ -156,33 +202,6 @@ game_loop :: proc(delta: f32) {
 	remove_dead(&state.projectiles, &state)
 	remove_dead(&state.vfx, &state)
 
-}
-
-move_toward :: proc(f, targ, delta: f32) -> f32 {
-	diff := targ - f
-	if abs(diff) <= delta do return targ
-	return f + math.sign(diff) * delta
-}
-handle_input :: proc(delta: f32) {
-	player := &state.player
-
-	playerSpeed :: 100
-	playerAccel :: 300
-
-	target_x: f32
-	target_y: f32
-	if rl.IsKeyDown(.A) do target_x -= 1
-	if rl.IsKeyDown(.D) do target_x += 1
-	if rl.IsKeyDown(.W) do target_y -= 1
-	if rl.IsKeyDown(.S) do target_y += 1
-
-	player.velocity.x = move_toward(player.velocity.x, target_x * playerSpeed, playerAccel * delta)
-	player.velocity.y = move_toward(player.velocity.y, target_y * playerSpeed, playerAccel * delta)
-	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) && try_claim_click() {
-		bulletSpeed :: 500
-		bullet_normal := unit_vector(player.rot)
-		spawn_bullet(&state, player.pos + bullet_normal * 30, bullet_normal * bulletSpeed)
-	}
 }
 
 draw_game_screen :: proc(state: ^GameState) {
