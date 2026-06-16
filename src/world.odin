@@ -143,7 +143,7 @@ update_player :: proc(delta: f32) {
 	player.velocity.y = move_toward(player.velocity.y, input.move.y * playerSpeed, playerAccel * delta)
 	if !state.buildMode && input.fire && try_claim_click() {
 		bulletSpeed :: 500
-		bullet_normal := input.aim if input_active(input.aim) else normalize(state.cursor - player.pos)
+		bullet_normal := normalize(state.cursor - player.pos)
 		spawn_bullet(&state, player.pos + bullet_normal * 30, bullet_normal * bulletSpeed)
 	}
 }
