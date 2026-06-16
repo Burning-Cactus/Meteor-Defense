@@ -124,7 +124,6 @@ draw_background :: proc() {
 		brightness := 40 * camera.zoom / s.distance
 		if brightness > .1 do draw_dot(s.pos, state.scale_hint, .PRIMARY, brightness)
 	}
-
 }
 
 // --- Player ---
@@ -134,7 +133,7 @@ move_toward :: proc(f, targ, delta: f32) -> f32 {
 	if abs(diff) <= delta do return targ
 	return f + math.sign(diff) * delta
 }
-handle_input :: proc(delta: f32) {
+update_player :: proc(delta: f32) {
 	player := &state.player
 
 	playerSpeed :: 100
@@ -153,6 +152,7 @@ handle_input :: proc(delta: f32) {
 // --- Main ---
 
 game_loop :: proc(delta: f32) {
+	if input.build_mode do state.buildMode = !state.buildMode
 	if state.buildMode {
 		update_build_mode(&state)
 	}
@@ -163,7 +163,7 @@ game_loop :: proc(delta: f32) {
 	state.comet.rot += 0.02 * delta
 
 	// Handle entities
-	handle_input(delta)
+	update_player(delta)
 	player := &state.player
 	player.pos += player.velocity * delta
 

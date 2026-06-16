@@ -12,16 +12,8 @@ draw_tower_toolbar ::proc() {
 	w,h := f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())
 	result := draw_toolbar({w/2, h-min(30, h/10)}, .BOTTOM, .RIGHT, len(selectable_towers), draw_tower_selector)
 	if result != -1 {
-		if result != selected_tower_idx || !state.buildMode {
-			selected_tower_idx = result
-			current_tower_type = selectable_towers[result]
-			state.buildMode = true
-			play_sfx("ui_click")
-		} else {
-			selected_tower_idx = -1
-			state.buildMode = false
-			play_sfx("ui_back")
-		}
+		selected_tower_idx = result
+		current_tower_type = selectable_towers[result]
 	}
 }
 
