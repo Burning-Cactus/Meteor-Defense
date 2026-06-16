@@ -449,7 +449,7 @@ draw_canvas_tool :: proc(
 	x, y = vec_ints({start.x + size.x * 0.1, start.y + size.y * 0.8})
 	rl.DrawText(canvas_tools[idx].name, x, y, 10, modulate(.PRIMARY))
 
-	return get_number_pressed() == idx || !click_claimed && is_box_clicked(start, end, cursor)
+	return get_number_selection(len(canvas_tools)-1) == idx || !click_claimed && is_box_clicked(start, end, cursor)
 }
 
 selected_tool_idx: int

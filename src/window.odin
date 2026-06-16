@@ -104,8 +104,8 @@ poll_input :: proc() {
 	input.fire |= rl.IsMouseButtonPressed(.RIGHT)
 
 	input.zoom = rl.GetMouseWheelMove()
-	for i in connected_gamepads do input.zoom -= rl.GetGamepadAxisMovement(i, .LEFT_TRIGGER) * 0.1
-	for i in connected_gamepads do input.zoom += rl.GetGamepadAxisMovement(i, .RIGHT_TRIGGER) * 0.1
+	for i in connected_gamepads do input.zoom -= rl.GetGamepadAxisMovement(i, .LEFT_TRIGGER) * 0.03
+	for i in connected_gamepads do input.zoom += rl.GetGamepadAxisMovement(i, .RIGHT_TRIGGER) * 0.03
 
 	input.pan = rl.GetMouseDelta() if rl.IsMouseButtonDown(.MIDDLE) else {}
 
@@ -126,7 +126,7 @@ poll_input :: proc() {
 	}
 	for i in connected_gamepads {
 		if rl.IsGamepadButtonPressed(i, .LEFT_TRIGGER_1) do input.select_slot -= 1
-		if rl.IsGamepadButtonPressed(i, .LEFT_TRIGGER_2) do input.select_slot += 1
+		if rl.IsGamepadButtonPressed(i, .RIGHT_TRIGGER_1) do input.select_slot += 1
 	} // wrapping will have to be done on the consumer side since we don't yet know how many slots there are
 
 	input.pause = rl.IsKeyPressed(.SPACE)

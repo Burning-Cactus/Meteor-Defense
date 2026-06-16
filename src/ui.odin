@@ -109,12 +109,15 @@ is_circle_clicked :: proc(center:Vec2, radius:f32, cursor:Vec2) -> bool {
 	return is_circle_hovered(center, radius, cursor) && rl.IsMouseButtonPressed(.LEFT) && try_claim_click()
 }
 
-get_number_pressed ::proc() -> int {
-	for key, i in ([]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE, .ZERO}) {
-		if rl.IsKeyPressed(key) do return i
-	}
-	return -1
+get_number_selection ::proc(max:int) -> int {
+	assert(max > 0)
+	i:int = input.select_slot
+	//wrap value between 0 and max
+	for ;i>max; i-=max+1 {}
+	for ;i<0; i+=max+1 {}
+	return i
 }
+
 box_geo ::proc(start:Vec2, end:Vec2) -> (center:Vec2, size:Vec2) {
 	center = (start + end) / 2
 	size = end - start // this is signed and idk if that's a good thing
@@ -245,7 +248,7 @@ draw_tool_basic :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hint:f
 	_, size: = box_geo(start, end)
 	x, y := vec_ints(start + size/10)
 	rl.DrawText(rl.TextFormat("%i", idx+1), x, y, 10, modulate(.PRIMARY))
-	return is_box_clicked(start, end, cursor) || get_number_pressed() == idx
+	return is_box_clicked(start, end, cursor) || get_number_selection(9) == idx
 }
 
 draw_toolbar :: proc(

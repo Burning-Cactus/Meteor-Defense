@@ -55,7 +55,7 @@ draw_tower_selector :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hi
 	inner_corner := start+ size/10
 	rl.DrawText(rl.TextFormat("%i", idx+1), i32(inner_corner.x), i32(inner_corner.y), 10, modulate(.PRIMARY))
 
-	return is_box_clicked(start, end, cursor) || get_number_pressed() == idx
+	return is_box_clicked(start, end, cursor) || get_number_selection(len(selectable_towers)-1) == idx
 }
 
 update_build_mode :: proc(state: ^GameState) {
@@ -100,7 +100,7 @@ draw_build_mode :: proc(state: ^GameState) {
 
 	draw_aim_arc(&current_pending_tower, current_pending_tower.col, state.scale_hint)
 	draw_entity(&current_pending_tower.entity, state)
-	if rl.IsMouseButtonPressed(.LEFT) && try_claim_click() {
+	if input.fire && try_claim_click() {
 		if can_build {
 			state.money -= current_pending_tower.value
 			current_pending_tower.col = .PRIMARY
