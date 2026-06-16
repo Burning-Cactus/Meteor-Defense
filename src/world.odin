@@ -144,7 +144,7 @@ handle_input :: proc(delta: f32) {
 	player.velocity.y = move_toward(player.velocity.y, input.move.y * playerSpeed, playerAccel * delta)
 	if !state.buildMode && input.fire && try_claim_click() {
 		bulletSpeed :: 500
-		bullet_normal := unit_vector(player.rot)
+		bullet_normal := input.aim if input_active(input.aim) else normalize(state.cursor - player.pos)
 		spawn_bullet(&state, player.pos + bullet_normal * 30, bullet_normal * bulletSpeed)
 	}
 }
@@ -166,7 +166,6 @@ game_loop :: proc(delta: f32) {
 	handle_input(delta)
 	player := &state.player
 	player.pos += player.velocity * delta
-	player.rot = angle_facing(player.pos, state.cursor)
 
 	meteorCount := len(state.meteors)
 	projectileCount := len(state.projectiles)

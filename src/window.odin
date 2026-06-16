@@ -76,6 +76,27 @@ get_every_connected_gampad :: proc () -> [dynamic]i32 {
 	return out
 }
 
+deadzone:f32 = 0.2
+deadzoned :: proc(raw:f32) -> f32 {
+	if abs(raw) < deadzone do return 0
+	return raw
+}
+
+build_input_vec :: proc(gamepad_idx:i32, x_axis:rl.GamepadAxis, y_axis:rl.GamepadAxis) -> Vec2 {
+	return {
+		deadzoned(rl.GetGamepadAxisMovement(gamepad_idx, x_axis)),
+		deadzoned(rl.GetGamepadAxisMovement(gamepad_idx, y_axis)),
+	}
+}
+
+deadzoned_v :: proc(raw:Vec2) -> Vec2 {
+	return {deadzoned(raw.x), deadzoned(raw.y)}
+}
+
+input_active :: proc(val:Vec2, threshold:f32 = deadzone) -> bool {
+	return abs(val.x) > threshold || abs(val.y) > threshold
+}
+
 poll_input :: proc() {
 	connected_gamepads := get_every_connected_gampad()
 	input.fire = rl.IsMouseButtonPressed(.LEFT)
@@ -93,11 +114,8 @@ poll_input :: proc() {
 	if rl.IsKeyDown(.D) do input.move.x += 1
 	if rl.IsKeyDown(.W) do input.move.y -= 1
 	if rl.IsKeyDown(.S) do input.move.y += 1
-	for i in connected_gamepads {
-		input.move.x += rl.GetGamepadAxisMovement(i, .LEFT_X)
-		input.move.y += rl.GetGamepadAxisMovement(i, .LEFT_Y)
-	}
-	input.move = normalize(input.move)
+	for i in connected_gamepads do input.move += build_input_vec(i, .LEFT_X, .LEFT_Y)
+	//input.move = normalize(input.move) FIXME clamp not normalize
 
 	// select_slot uniquely can persist frame-to-frame
 	for numkey, i in ([]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE, .ZERO}) {
@@ -109,7 +127,7 @@ poll_input :: proc() {
 	for i in connected_gamepads {
 		if rl.IsGamepadButtonPressed(i, .LEFT_TRIGGER_1) do input.select_slot -= 1
 		if rl.IsGamepadButtonPressed(i, .LEFT_TRIGGER_2) do input.select_slot += 1
-	}
+	} // wrapping will have to be done on the consumer side since we don't yet know how many slots there are
 
 	input.pause = rl.IsKeyPressed(.SPACE)
 	for i in connected_gamepads {
@@ -118,10 +136,7 @@ poll_input :: proc() {
 	}
 
 	input.aim = {0,0}
-	for i in connected_gamepads {
-		input.aim.x += rl.GetGamepadAxisMovement(i, .RIGHT_X)
-		input.aim.y += rl.GetGamepadAxisMovement(i, .RIGHT_Y)
-	}
+	for i in connected_gamepads do input.aim += build_input_vec(i, .RIGHT_X, .RIGHT_Y)
 }
 
 // --- Interaction ---
