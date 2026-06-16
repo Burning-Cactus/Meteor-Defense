@@ -97,6 +97,10 @@ deadzoned_v :: proc(raw:Vec2) -> Vec2 {
 input_active :: proc(val:Vec2, threshold:f32 = deadzone) -> bool {
 	return abs(val.x) > threshold || abs(val.y) > threshold
 }
+clamped_input :: proc(raw:Vec2) -> Vec2 {
+	if dist_squared(raw) > 1 do return normalize(raw)
+	return raw
+}
 
 poll_input :: proc() {
 	connected_gamepads := get_every_connected_gampad()
@@ -116,7 +120,7 @@ poll_input :: proc() {
 	if rl.IsKeyDown(.W) do input.move.y -= 1
 	if rl.IsKeyDown(.S) do input.move.y += 1
 	for i in connected_gamepads do input.move += build_input_vec(i, .LEFT_X, .LEFT_Y)
-	//input.move = normalize(input.move) FIXME clamp not normalize
+	input.move = clamped_input(input.move)
 
 	input.build_mode = false
 	// select_slot uniquely can persist frame-to-frame
@@ -391,7 +395,8 @@ update :: proc() {
 		pan_to_new_window_size()
 	}
 
-	state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
+	if input_active(input.aim) do state.cursor = state.player.pos + input.aim * 1000
+	else do state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 
 	rl.BeginTextureMode(shader_target)
 
