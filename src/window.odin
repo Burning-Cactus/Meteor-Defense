@@ -55,20 +55,85 @@ get_frustum :: proc() -> (start: Vec2, end: Vec2) {
 	return
 }
 
+// --- Input ---
+
+FrameInput :: struct {
+	fire:bool,
+	zoom:f32,
+	pan:Vec2,
+	move:Vec2,
+	aim:Vec2,
+	select_slot:int,
+	pause:bool,
+}
+input:FrameInput
+
+get_every_connected_gampad :: proc () -> [dynamic]i32 {
+	out:[dynamic]i32 //TODO is dynamic the right choice for this?
+	for i:i32; rl.IsGamepadAvailable(i); i+=1 {
+		append(&out, i)
+	}
+	return out
+}
+
+poll_input :: proc() {
+	connected_gamepads := get_every_connected_gampad()
+	input.fire = rl.IsMouseButtonPressed(.LEFT)
+	for i in connected_gamepads do input.fire |= rl.IsGamepadButtonPressed(i, .RIGHT_FACE_DOWN)
+	input.fire |= rl.IsMouseButtonPressed(.RIGHT)
+
+	input.zoom = rl.GetMouseWheelMove()
+	for i in connected_gamepads do input.zoom -= rl.GetGamepadAxisMovement(i, .LEFT_TRIGGER) * 0.1
+	for i in connected_gamepads do input.zoom += rl.GetGamepadAxisMovement(i, .RIGHT_TRIGGER) * 0.1
+
+	input.pan = rl.GetMouseDelta() if rl.IsMouseButtonDown(.MIDDLE) else {}
+
+	input.move = {0,0}
+	if rl.IsKeyDown(.A) do input.move.x -= 1
+	if rl.IsKeyDown(.D) do input.move.x += 1
+	if rl.IsKeyDown(.W) do input.move.y -= 1
+	if rl.IsKeyDown(.S) do input.move.y += 1
+	for i in connected_gamepads {
+		input.move.x += rl.GetGamepadAxisMovement(i, .LEFT_X)
+		input.move.y += rl.GetGamepadAxisMovement(i, .LEFT_Y)
+	}
+	input.move = normalize(input.move)
+
+	// select_slot uniquely can persist frame-to-frame
+	for numkey, i in ([]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE, .ZERO}) {
+		if rl.IsKeyPressed(numkey) {
+			input.select_slot = i
+			break
+		}
+	}
+	for i in connected_gamepads {
+		if rl.IsGamepadButtonPressed(i, .LEFT_TRIGGER_1) do input.select_slot -= 1
+		if rl.IsGamepadButtonPressed(i, .LEFT_TRIGGER_2) do input.select_slot += 1
+	}
+
+	input.pause = rl.IsKeyPressed(.SPACE)
+	for i in connected_gamepads {
+		input.pause |= rl.IsGamepadButtonPressed(i, .MIDDLE_RIGHT)
+		input.pause |= rl.IsGamepadButtonPressed(i, .MIDDLE_LEFT)
+	}
+
+	input.aim = {0,0}
+	for i in connected_gamepads {
+		input.aim.x += rl.GetGamepadAxisMovement(i, .RIGHT_X)
+		input.aim.y += rl.GetGamepadAxisMovement(i, .RIGHT_Y)
+	}
+}
+
 // --- Interaction ---
 
 handle_camera_move :: proc(delta: f32) {
 	// Pan with middle mouse button
-	if rl.IsMouseButtonDown(.MIDDLE) {
-		mouse_delta := rl.GetMouseDelta()
-		camera.target -= Vec2{mouse_delta.x, mouse_delta.y} * (1.0 / camera.zoom)
-	}
+	camera.target -=  input.pan * (1.0 / camera.zoom)
 
 	// Zoom to cursor with scroll wheel
-	wheel := rl.GetMouseWheelMove()
 	effective_max_zoom := state.max_zoom * screen_size_ratio()
-	if (wheel > 0 && camera.zoom <= effective_max_zoom - 0.1) || wheel < 0 {
-		scale := f32(0.2) * wheel
+	if (input.zoom > 0 && camera.zoom <= effective_max_zoom - 0.1) || input.zoom < 0 {
+		scale := f32(0.2) * input.zoom
 		mouse_world := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
 		camera.offset = rl.GetMousePosition()
 		camera.target = mouse_world
@@ -83,7 +148,7 @@ handle_camera_move :: proc(delta: f32) {
 
 paused: bool
 handle_paused :: proc() -> bool{
-	if rl.IsKeyPressed(.SPACE) do paused = !paused
+	if input.pause do paused = !paused
 	if paused {
 		msg_start, msg_end := draw_screen_message("PAUSED")
 		draw_settings({
@@ -277,10 +342,11 @@ draw_title_screen :: proc(delta: f32) {
 // --- Main Loop ---
 
 update :: proc() {
+	click_claimed = false
+	poll_input()
 	update_music()
 	delta := rl.GetFrameTime()
 	update_transition(delta)
-	click_claimed = false
 	state.scale_hint = camera.zoom
 
 	if rl.IsWindowResized() {

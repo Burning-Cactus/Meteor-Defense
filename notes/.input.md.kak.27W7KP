@@ -1,0 +1,14 @@
+I want to create an event-based input system inspired by Godot. There are some characteristics I know it needs to have, and also some parts I haven't fully worked out yet.
+# Events
+A struct containing the event ID and other info such as magnitude and direction. It will abstract way the underlying input mechanism, be it a keypress, or a joystick, or something else. The "event ID" could be an enum, or it could be type declaration, there are pros an cons to each. An event could be a simple intantaneous trigger, or boolean "pressed" or "not pressed", it could have an absolute position in screen space (in the case of a mouse click), or it could have an n-dimensional relative motion (in the case of a joystick, or in the case of a mouse motion if it made sense to interpret the mouse as such).
+# Mapping
+Hardware inputs will be mapped to events. Multiple inputs could be mapped to the same event, for example the game could be controlled with a keyboard or with a gamepad. As well as that, one input could be mapped to multiple events, for example a mouse button could represent a UI click, or Fire. An input should only be interpetted one way. We are currently using `click_claimed:bool` in ui.odin to prevent multiple parts of the code from interpretting a mouse click at the same time, but it's a bit clumsy.
+# Routing
+The Godot-like way to handle input is that every node in the tree has a `_input(event:InputEvent)` function and inputs propagate through the tree. A tree may not be the correct data structure to use for out purposes, a list may be more suitable, or perhaps something else. Perhaps seperating the input into distinct layers such as "UI" and "Gamplay" would work. The the things I can say for sure are: One; there needs to be some way declare input priority, currently the only reason UI has priority handling clicks is that that code is called above the player handling code. Having to worry about order of operations like this is limiting and can introduce surprising errors. Two; however the input routing is declared, it should be immediate-mode, i.e. it should be declared at the top of every frame and there should be persistance. Everything in the game is immediate-mode and making it work some other way would be a recipe for weird bugs. Three; a Godot-like `input` function would be nice to have, but it should be opt-in. It might not apply cleanly all or even any of the exisiting usecases for input.
+
+Additional notes
+
+- Motion
+- Position
+- 
+

@@ -3,7 +3,6 @@ package game
 
 import "core:fmt"
 import "core:math"
-import rl "vendor:raylib"
 
 cursor_entity :: proc() -> Entity {
 	return Entity{pos = state.cursor, alive = true, shape = Circle{32}}
@@ -141,16 +140,9 @@ handle_input :: proc(delta: f32) {
 	playerSpeed :: 100
 	playerAccel :: 300
 
-	target_x: f32
-	target_y: f32
-	if rl.IsKeyDown(.A) do target_x -= 1
-	if rl.IsKeyDown(.D) do target_x += 1
-	if rl.IsKeyDown(.W) do target_y -= 1
-	if rl.IsKeyDown(.S) do target_y += 1
-
-	player.velocity.x = move_toward(player.velocity.x, target_x * playerSpeed, playerAccel * delta)
-	player.velocity.y = move_toward(player.velocity.y, target_y * playerSpeed, playerAccel * delta)
-	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) && try_claim_click() {
+	player.velocity.x = move_toward(player.velocity.x, input.move.x * playerSpeed, playerAccel * delta)
+	player.velocity.y = move_toward(player.velocity.y, input.move.y * playerSpeed, playerAccel * delta)
+	if !state.buildMode && input.fire && try_claim_click() {
 		bulletSpeed :: 500
 		bullet_normal := unit_vector(player.rot)
 		spawn_bullet(&state, player.pos + bullet_normal * 30, bullet_normal * bulletSpeed)
