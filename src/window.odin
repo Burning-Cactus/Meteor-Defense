@@ -123,33 +123,35 @@ poll_input :: proc() {
 	input.move = clamped_input(input.move)
 
 	input.build_mode = false
-	// select_slot uniquely can persist frame-to-frame
-	for numkey, i in ([]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE, .ZERO}) {
-		if rl.IsKeyPressed(numkey) {
-			if !state.buildMode {
-				input.build_mode = true
-				play_sfx("ui_click")
-			} else if i == input.select_slot {
-				input.build_mode = true
-				play_sfx("ui_back")
-			} else do play_sfx("ui_click")
+	if currentScreen == .Game || currentScreen == .Draw { //TODO: this is a bit of a hack
+		// select_slot uniquely can persist frame-to-frame
+		for numkey, i in ([]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE, .ZERO}) {
+			if rl.IsKeyPressed(numkey) {
+				if !state.buildMode {
+					input.build_mode = true
+					play_sfx("ui_click")
+				} else if i == input.select_slot {
+					input.build_mode = true
+					play_sfx("ui_back")
+				} else do play_sfx("ui_click")
 
-			input.select_slot = i
-			break
+				input.select_slot = i
+				break
+			}
 		}
+		for i in connected_gamepads {
+			if rl.IsGamepadButtonPressed(i, .LEFT_TRIGGER_1) {
+				input.select_slot -= 1
+				play_sfx("ui_click")
+				if !state.buildMode do input.build_mode = true
+			}
+			if rl.IsGamepadButtonPressed(i, .RIGHT_TRIGGER_1) {
+				input.select_slot += 1
+				play_sfx("ui_click")
+				if !state.buildMode do input.build_mode = true
+			}
+		} // wrapping will have to be done on the consumer side since we don't yet know how many slots there are
 	}
-	for i in connected_gamepads {
-		if rl.IsGamepadButtonPressed(i, .LEFT_TRIGGER_1) {
-			input.select_slot -= 1
-			play_sfx("ui_click")
-			if !state.buildMode do input.build_mode = true
-		}
-		if rl.IsGamepadButtonPressed(i, .RIGHT_TRIGGER_1) {
-			input.select_slot += 1
-			play_sfx("ui_click")
-			if !state.buildMode do input.build_mode = true
-		}
-	} // wrapping will have to be done on the consumer side since we don't yet know how many slots there are
 
 	input.build_mode |= rl.IsKeyPressed(.B)
 	for i in connected_gamepads do input.build_mode |= rl.IsGamepadButtonPressed(i, .RIGHT_FACE_RIGHT)
@@ -167,7 +169,7 @@ poll_input :: proc() {
 
 // --- Interaction ---
 
-handle_camera_move :: proc(delta: f32) {
+handle_freecam :: proc(delta: f32) {
 	// Pan with middle mouse button
 	camera.target -=  input.pan * (1.0 / camera.zoom)
 
@@ -295,7 +297,7 @@ GameState :: struct {
 	projectiles:       [dynamic]Entity,
 	vfx:               [dynamic]Vfx,
 	comet:             Entity,
-	comet_velocity:    Vec2, //purely cosmetic
+	comet_velocity:    Vec2,
 	highlighted_tower: ^Tower,
 	gameTime:          f64,
 	timeRemaining:     f32,
@@ -436,8 +438,9 @@ update :: proc() {
 				}
 			}
 		}
-		handle_camera_move(delta)
+		handle_freecam(delta)
 
+		// The radar thing
 		screen_end := screen_vec()
 		screen_center := screen_end / 2
 		for m in state.meteors {
@@ -476,7 +479,7 @@ update :: proc() {
 			rl.DrawText(rl.TextFormat("$%d", state.money), x - 240, 40, 20, rl.WHITE)
 		}
 	case .Draw:
-		handle_camera_move(delta)
+		handle_freecam(delta)
 		draw_canvas_toolbar()
 		rl.BeginMode2D(camera)
 		canvas_loop(delta)
