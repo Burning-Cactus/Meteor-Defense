@@ -76,7 +76,7 @@ get_every_connected_gampad :: proc () -> [dynamic]i32 {
 	return out
 }
 
-deadzone:f32 = 0.2
+deadzone:f32 = 0.02
 deadzoned :: proc(raw:f32) -> f32 {
 	if abs(raw) < deadzone do return 0
 	return raw
@@ -167,9 +167,18 @@ poll_input :: proc() {
 
 // --- Interaction ---
 
-handle_freecam :: proc(delta: f32) {
-	camera.target -=  input.pan * (1.0 / camera.zoom)
-	handle_camera_zoom(delta, 0.2, rl.GetMousePosition())
+set_cursor_captured :: proc(captured: bool) {
+	if captured == rl.IsCursorHidden() do return
+	if captured {
+		rl.DisableCursor()
+	} else {
+		rl.EnableCursor()
+	}
+}
+
+soft_cursor_pos: Vec2
+draw_cursor :: proc() {
+	draw_dot(soft_cursor_pos, 1.0, .PRIMARY, 3)
 }
 
 handle_camera_zoom :: proc(delta:f32, seconds:f32=0, offset:Vec2={}) {
@@ -190,20 +199,9 @@ handle_camera_zoom :: proc(delta:f32, seconds:f32=0, offset:Vec2={}) {
 	}
 }
 
-set_cursor_captured :: proc(captured: bool) {
-	if captured == rl.IsCursorHidden() do return
-	if captured {
-		//cursor_pos = rl.GetMousePosition()
-		//cursor_accum = cursor_pos
-		rl.DisableCursor()
-	} else {
-		rl.EnableCursor()
-	}
-}
-
-soft_cursor_pos: Vec2
-draw_cursor :: proc() {
-	draw_dot(soft_cursor_pos, 1.0, .PRIMARY, 3)
+handle_freecam :: proc(delta: f32) {
+	camera.target -=  input.pan * (1.0 / camera.zoom)
+	handle_camera_zoom(delta, 0.2, rl.GetMousePosition())
 }
 
 cursor_accum: Vec2
@@ -217,11 +215,15 @@ handle_hybrid_camera :: proc(delta: f32) {
 
 	max_look :: 2
 
-	cursor_accum += rl.GetMouseDelta() // TODO: use lower latency polling method
-	cursor_accum = clamp_radial(cursor_accum, max_look*scale)
+	look_offset: = input.aim * max_look * scale
 
-	cursor_portion := soft_clamp_radial(cursor_accum, scale)
-	camera.target = state.player.pos + (cursor_accum - cursor_portion) / camera.zoom
+	cursor_accum += rl.GetMouseDelta() // TODO: use lower latency polling method
+	cursor_accum = clamp_radial(cursor_accum, max_look*scale) // clamped to make sure it doesn't drift away infinitely
+
+	look_offset = clamp_radial(cursor_accum + look_offset, max_look*scale)
+
+	cursor_portion := soft_clamp_radial(look_offset, scale)
+	camera.target = state.player.pos + (look_offset - cursor_portion) / camera.zoom
 
 	soft_cursor_pos = cursor_portion + center
 }
