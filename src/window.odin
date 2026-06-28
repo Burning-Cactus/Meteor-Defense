@@ -11,7 +11,6 @@ _LOGO_PNG :: #load("../assets/logo.png")
 logo_texture: rl.Texture2D
 
 TRANSITION_SPEED: f32 : 1 / 0.3 //seconds
-GAME_OVER_SLOMO_TIME: f32 : 3 // seconds to reach zero time scale
 
 performance_test :: false // Disable vsync and display fps
 
@@ -22,13 +21,13 @@ prev_window_size: Vec2
 
 // --- Window Size Utils ---
 
-REFERENCE_SCREEN_METRIC:f32: 1000 // (1280 + 720) / 2
 BASE_CAMERA_ZOOM:f32: 4.0
 
 screen_size_metric :: proc() -> f32 {
 	return (f32(rl.GetScreenWidth()) + f32(rl.GetScreenHeight())) / 2
 }
 screen_size_ratio :: proc() -> f32 {
+	REFERENCE_SCREEN_METRIC:f32: 1000 // (1280 + 720) / 2
 	return screen_size_metric() / REFERENCE_SCREEN_METRIC
 }
 
@@ -107,9 +106,11 @@ poll_input :: proc() {
 	for i in connected_gamepads do input.fire |= rl.IsGamepadButtonPressed(i, .RIGHT_FACE_DOWN)
 	input.fire |= rl.IsMouseButtonPressed(.RIGHT)
 
-	input.zoom = rl.GetMouseWheelMove()
-	for i in connected_gamepads do input.zoom -= rl.GetGamepadAxisMovement(i, .LEFT_TRIGGER) * 0.03
-	for i in connected_gamepads do input.zoom += rl.GetGamepadAxisMovement(i, .RIGHT_TRIGGER) * 0.03
+	zoom_delta := rl.GetMouseWheelMove()
+	for i in connected_gamepads do zoom_delta -= rl.GetGamepadAxisMovement(i, .LEFT_TRIGGER) * 0.03
+	for i in connected_gamepads do zoom_delta += rl.GetGamepadAxisMovement(i, .RIGHT_TRIGGER) * 0.03
+	input.zoom *= math.exp(0.2 * zoom_delta) // logarithmic zoom
+	input.zoom = clamp(input.zoom, 0.125, 2)
 
 	input.pan = rl.GetMouseDelta() if rl.IsMouseButtonDown(.MIDDLE) else {}
 
@@ -123,7 +124,7 @@ poll_input :: proc() {
 
 	input.build_mode = false
 	if currentScreen == .Game || currentScreen == .Draw { //TODO: this is ugly
-		// select_slot uniquely can persist frame-to-frame
+		// select_slot can persist frame-to-frame
 		for numkey, i in ([]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE, .ZERO}) {
 			if rl.IsKeyPressed(numkey) {
 				if !state.buildMode {
@@ -178,24 +179,26 @@ set_cursor_captured :: proc(captured: bool) {
 
 soft_cursor_pos: Vec2
 draw_cursor :: proc() {
-	draw_dot(soft_cursor_pos, 1.0, .PRIMARY, 3)
+	if rl.IsCursorHidden() do draw_dot(soft_cursor_pos, 1.0, .PRIMARY, 3)
 }
 
-handle_camera_zoom :: proc(delta:f32, seconds:f32=0, offset:Vec2={}) {
+handle_camera_zoom :: proc(delta:f32, seconds:f32=0, offset:Vec2={}, tweak:f32=1) {
 	speed:= 1 / seconds if seconds > 0 else 0
-	effective_max_zoom := state.max_zoom * screen_size_ratio()
+	base:= BASE_CAMERA_ZOOM * screen_size_ratio()
+	target:= base * input.zoom * tweak
 
-	if (input.zoom > 0 && camera.zoom <= effective_max_zoom - 0.1) || input.zoom < 0 {
-		scale := 0.2 * input.zoom
-		offset_compensation := rl.GetScreenToWorld2D(offset, camera)
-		camera.offset = offset
-		camera.target = offset_compensation
-		camera.zoom = clamp(math.exp(math.ln(camera.zoom) + scale), .125, 64)
-	}
+	offset_compensation := rl.GetScreenToWorld2D(offset, camera)
+	camera.offset = offset
+	camera.target = offset_compensation
 
-	if state.max_zoom > 0 && camera.zoom > effective_max_zoom {
-		if speed > 0 do camera.zoom += (effective_max_zoom - camera.zoom) * speed * delta
-		else do camera.zoom = effective_max_zoom
+	if speed > 0 {
+		camera.zoom += (target - camera.zoom) * speed * delta
+		if abs(target - camera.zoom) < 0.0001 {
+			camera.zoom = target
+			return
+		}
+	} else {
+		camera.zoom = target
 	}
 }
 
@@ -209,22 +212,24 @@ cursor_accum: Vec2
 handle_hybrid_camera :: proc(delta: f32) {
 	set_cursor_captured(true)
 	center:= screen_vec()/2
-	handle_camera_zoom(delta, 1, center)
 
 	scale := min(screen_vec().x, screen_vec().y) /2
 
 	max_look :: 2
-
 	look_offset: = input.aim * max_look * scale
-
 	cursor_accum += rl.GetMouseDelta() // TODO: use lower latency polling method
 	cursor_accum = clamp_radial(cursor_accum, max_look*scale) // clamped to make sure it doesn't drift away infinitely
 
 	look_offset = clamp_radial(cursor_accum + look_offset, max_look*scale)
-
 	cursor_portion := soft_clamp_radial(look_offset, scale)
-	camera.target = state.player.pos + (look_offset - cursor_portion) / camera.zoom
+	pan := look_offset - cursor_portion
 
+	// Subtly zoom out the further the camera pans towards the edge. dist(pan)/scale is
+	// 0..1, so at full pan the zoom is multiplied by (1 - EDGE_ZOOM_OUT).
+	EDGE_ZOOM_OUT :: 0.5
+	handle_camera_zoom(delta, 0.2, center, 1 - dist(pan) / scale * EDGE_ZOOM_OUT)
+
+	camera.target = state.player.pos + pan / camera.zoom
 	soft_cursor_pos = cursor_portion + center
 }
 
@@ -288,6 +293,7 @@ set_screen :: proc(target: Screen) {
 	case .Game:
 		fmt.println("Game")
 		reset_game()
+		input.zoom = 0.375 // zoom out when game starts
 		clear_music_loop_points()
 	case .Title:
 		fmt.println("Title")
@@ -296,7 +302,6 @@ set_screen :: proc(target: Screen) {
 	case .Draw:
 		fmt.println("Draw")
 		reset_game()
-		state.max_zoom = 64
 	}
 	currentScreen = target
 }
@@ -329,7 +334,6 @@ draw_transition_curtain :: proc() {
 // --- Screen: Game ---
 
 GameState :: struct {
-	//TODO: split some of this into new WorldState
 	player:            Entity,
 	meteors:           [dynamic]Meteor,
 	towers:            [dynamic]Tower,
@@ -349,7 +353,6 @@ GameState :: struct {
 	cursor:            Vec2,
 	scale_hint:        f32,
 	difficulty_scale:  f32,
-	max_zoom:          f32,
 }
 
 state: GameState
@@ -383,15 +386,38 @@ reset_game :: proc() {
 		money = 10,
 		difficulty_scale = 1,
 		timeScale = 1,
-		max_zoom = 1.5,
 	}
 	init_background()
 	camera.offset = Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
 	camera.target = state.player.pos
 	camera.zoom = BASE_CAMERA_ZOOM * screen_size_ratio()
+	input.zoom = 1 // absolute zoom factor; 1 == base zoom
+}
+
+draw_radar :: proc() {
+	screen_end := screen_vec()
+	screen_center := screen_end / 2
+	for m in state.meteors {
+		inset:f32: 50
+		ms := rl.GetWorldToScreen2D(m.pos, camera)
+		if ms.x >= 0 && ms.x <= screen_end.x &&
+		   ms.y >= 0 && ms.y <= screen_end.y {
+			continue
+		}
+		dir := ms - screen_center
+		if dir == {} do continue
+		tx: f32 = math.F32_MAX
+		ty: f32 = math.F32_MAX
+		if dir.x > 0 do tx = (screen_end.x - inset - screen_center.x) / dir.x
+		else if dir.x < 0 do tx = (inset - screen_center.x) / dir.x
+		if dir.y > 0 do ty = (screen_end.y - inset - screen_center.y) / dir.y
+		else if dir.y < 0 do ty = (inset - screen_center.y) / dir.y
+		draw_dot(screen_center + dir * min(tx, ty), 1.0, .PRIMARY, 2.0-dist_squared({tx,ty}, ms) * 0.00001)
+	}
 }
 
 // --- Screen: Title ---
+
 slider_drag:Drag
 draw_title_screen :: proc(delta: f32) {
 	rl.BeginMode2D(camera)
@@ -466,6 +492,7 @@ update :: proc() {
 			if state.gameOver {
 				msg: cstring = "VICTORY" if state.endReason == .Victory else "GAME OVER"
 				draw_screen_message(msg)
+				GAME_OVER_SLOMO_TIME: f32 : 3 // seconds to reach zero time scale
 				state.timeScale = max(state.timeScale - delta / GAME_OVER_SLOMO_TIME, 0)
 				state.endTimer += delta
 				if state.endTimer >= 4.0 do transition_to(.Game)
@@ -488,26 +515,7 @@ update :: proc() {
 			handle_freecam(delta)
 		}
 
-		// The radar thing
-		screen_end := screen_vec()
-		screen_center := screen_end / 2
-		for m in state.meteors {
-			inset:f32: 50
-			ms := rl.GetWorldToScreen2D(m.pos, camera)
-			if ms.x >= 0 && ms.x <= screen_end.x &&
-			   ms.y >= 0 && ms.y <= screen_end.y {
-				continue
-			}
-			dir := ms - screen_center
-			if dir == {} do continue
-			tx: f32 = math.F32_MAX
-			ty: f32 = math.F32_MAX
-			if dir.x > 0 do tx = (screen_end.x - inset - screen_center.x) / dir.x
-			else if dir.x < 0 do tx = (inset - screen_center.x) / dir.x
-			if dir.y > 0 do ty = (screen_end.y - inset - screen_center.y) / dir.y
-			else if dir.y < 0 do ty = (inset - screen_center.y) / dir.y
-			draw_dot(screen_center + dir * min(tx, ty), 1.0, .PRIMARY, 2.0-dist_squared({tx,ty}, ms) * 0.00001)
-		}
+		draw_radar()
 
 		rl.BeginMode2D(camera)
 		draw_game_screen(&state)
