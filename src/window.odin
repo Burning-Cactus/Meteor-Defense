@@ -11,7 +11,6 @@ _LOGO_PNG :: #load("../assets/logo.png")
 logo_texture: rl.Texture2D
 
 TRANSITION_SPEED: f32 : 1 / 0.3 //seconds
-ZOOMOUT_SPEED: f32 : 2 / 1 //seconds
 GAME_OVER_SLOMO_TIME: f32 : 3 // seconds to reach zero time scale
 
 performance_test :: false // Disable vsync and display fps
@@ -123,7 +122,7 @@ poll_input :: proc() {
 	input.move = clamped_input(input.move)
 
 	input.build_mode = false
-	if currentScreen == .Game || currentScreen == .Draw { //TODO: this is a bit of a hack
+	if currentScreen == .Game || currentScreen == .Draw { //TODO: this is ugly
 		// select_slot uniquely can persist frame-to-frame
 		for numkey, i in ([]rl.KeyboardKey{.ONE, .TWO, .THREE, .FOUR, .FIVE, .SIX, .SEVEN, .EIGHT, .NINE, .ZERO}) {
 			if rl.IsKeyPressed(numkey) {
@@ -156,7 +155,6 @@ poll_input :: proc() {
 	input.build_mode |= rl.IsKeyPressed(.B)
 	for i in connected_gamepads do input.build_mode |= rl.IsGamepadButtonPressed(i, .RIGHT_FACE_RIGHT)
 
-
 	input.pause = rl.IsKeyPressed(.SPACE)
 	for i in connected_gamepads {
 		input.pause |= rl.IsGamepadButtonPressed(i, .MIDDLE_RIGHT)
@@ -170,23 +168,62 @@ poll_input :: proc() {
 // --- Interaction ---
 
 handle_freecam :: proc(delta: f32) {
-	// Pan with middle mouse button
 	camera.target -=  input.pan * (1.0 / camera.zoom)
+	handle_camera_zoom(delta, 0.2, rl.GetMousePosition())
+}
 
-	// Zoom to cursor with scroll wheel
+handle_camera_zoom :: proc(delta:f32, seconds:f32=0, offset:Vec2={}) {
+	speed:= 1 / seconds if seconds > 0 else 0
 	effective_max_zoom := state.max_zoom * screen_size_ratio()
+
 	if (input.zoom > 0 && camera.zoom <= effective_max_zoom - 0.1) || input.zoom < 0 {
-		scale := f32(0.2) * input.zoom
-		mouse_world := rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
-		camera.offset = rl.GetMousePosition()
-		camera.target = mouse_world
-		camera.zoom = clamp(math.exp_f32(math.ln_f32(camera.zoom) + scale), f32(0.125), f32(64.0))
+		scale := 0.2 * input.zoom
+		offset_compensation := rl.GetScreenToWorld2D(offset, camera)
+		camera.offset = offset
+		camera.target = offset_compensation
+		camera.zoom = clamp(math.exp(math.ln(camera.zoom) + scale), .125, 64)
 	}
 
 	if state.max_zoom > 0 && camera.zoom > effective_max_zoom {
-		camera.zoom += (effective_max_zoom - camera.zoom) * ZOOMOUT_SPEED * delta
+		if speed > 0 do camera.zoom += (effective_max_zoom - camera.zoom) * speed * delta
+		else do camera.zoom = effective_max_zoom
 	}
+}
 
+set_cursor_captured :: proc(captured: bool) {
+	if captured == rl.IsCursorHidden() do return
+	if captured {
+		//cursor_pos = rl.GetMousePosition()
+		//cursor_accum = cursor_pos
+		rl.DisableCursor()
+	} else {
+		rl.EnableCursor()
+	}
+}
+
+soft_cursor_pos: Vec2
+draw_cursor :: proc() {
+	draw_dot(soft_cursor_pos, 1.0, .PRIMARY, 3)
+}
+
+cursor_accum: Vec2
+// smoothly blends between moving the cursor and moving the camera towards the screen edge
+handle_hybrid_camera :: proc(delta: f32) {
+	set_cursor_captured(true)
+	center:= screen_vec()/2
+	handle_camera_zoom(delta, 1, center)
+
+	scale := min(screen_vec().x, screen_vec().y) /2
+
+	max_look :: 2
+
+	cursor_accum += rl.GetMouseDelta() // TODO: use lower latency polling method
+	cursor_accum = clamp_radial(cursor_accum, max_look*scale)
+
+	cursor_portion := soft_clamp_radial(cursor_accum, scale)
+	camera.target = state.player.pos + (cursor_accum - cursor_portion) / camera.zoom
+
+	soft_cursor_pos = cursor_portion + center
 }
 
 paused: bool
@@ -397,8 +434,13 @@ update :: proc() {
 		pan_to_new_window_size()
 	}
 
-	if input_active(input.aim) do state.cursor = state.player.pos + input.aim * 1000
-	else do state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
+	if input_active(input.aim) {
+		state.cursor = state.player.pos + input.aim * 1000
+	} else if rl.IsCursorHidden() {
+		state.cursor = rl.GetScreenToWorld2D(soft_cursor_pos, camera)
+	} else {
+		state.cursor = rl.GetScreenToWorld2D(rl.GetMousePosition(), camera)
+	}
 
 	rl.BeginTextureMode(shader_target)
 
@@ -415,6 +457,7 @@ update :: proc() {
 	}
 	switch currentScreen {
 	case .Title:
+		set_cursor_captured(false)
 		draw_title_screen(delta)
 	case .Game:
 		if !handle_paused() {
@@ -437,8 +480,11 @@ update :: proc() {
 					play_sfx("victory")
 				}
 			}
+			handle_hybrid_camera(delta)
+		} else {
+			set_cursor_captured(false)
+			handle_freecam(delta)
 		}
-		handle_freecam(delta)
 
 		// The radar thing
 		screen_end := screen_vec()
@@ -478,13 +524,16 @@ update :: proc() {
 			x, _ := screen_size()
 			rl.DrawText(rl.TextFormat("$%d", state.money), x - 240, 40, 20, rl.WHITE)
 		}
+		//if cursor_captured do draw_cursor()
 	case .Draw:
+		set_cursor_captured(false)
 		handle_freecam(delta)
 		draw_canvas_toolbar()
 		rl.BeginMode2D(camera)
 		canvas_loop(delta)
 		rl.EndMode2D()
 	}
+	draw_cursor()
 	rl.EndTextureMode()
 
 	rl.BeginDrawing()

@@ -195,6 +195,32 @@ progress :: proc(val:f32, start:f32, end:f32) -> f32 {
 	return clamp((val - start) / (end - start), 0, 1)
 }
 
+// Eases val towards upper as it grows, so it never quite reaches it. Below zero it
+// passes through unchanged; above 2*upper it saturates at upper. Adapted from the
+// soft_clamp camera system. Expects val >= 0.
+soft_clamp :: proc(val: f32, upper: f32) -> f32 {
+	if val < 0 do return val
+	if val > upper * 2 do return upper
+	upper_mult := upper * 4
+	return val * ((upper_mult - val) / upper_mult)
+}
+
+// Radial soft clamp: eases the vector's magnitude towards upper while preserving its
+// direction. Unlike a per-axis clamp this is isotropic, so diagonal motion reaches
+// exactly as far as axis-aligned motion.
+soft_clamp_radial :: proc(v: Vec2, upper: f32) -> Vec2 {
+	mag := dist(v)
+	if mag == 0 do return v
+	return v * (soft_clamp(mag, upper) / mag)
+}
+
+// Hard radial clamp: limits the vector's magnitude to max_mag, preserving direction.
+clamp_radial :: proc(v: Vec2, max_mag: f32) -> Vec2 {
+	mag := dist(v)
+	if mag > max_mag do return v * (max_mag / mag)
+	return v
+}
+
 // Accumulates delta into timer and fires (returning true and subtracting interval) when it overflows.
 tick :: proc(timer: ^f32, interval, delta: f32) -> bool {
 	timer^ += delta
