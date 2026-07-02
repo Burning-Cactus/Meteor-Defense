@@ -141,10 +141,13 @@ update_player :: proc(delta: f32) {
 
 	player.velocity.x = move_toward(player.velocity.x, input.move.x * playerSpeed, playerAccel * delta)
 	player.velocity.y = move_toward(player.velocity.y, input.move.y * playerSpeed, playerAccel * delta)
-	if !state.buildMode && input.fire && try_claim_click() {
+	state.shootCooldown = max(0, state.shootCooldown - delta)
+	if !state.buildMode && input.fire && state.shootCooldown <= 0 && try_claim_click() {
+		shootCooldownTime :: 0.2
 		bulletSpeed :: 500
 		bullet_normal := normalize(state.cursor - player.pos)
 		spawn_bullet(&state, player.pos + bullet_normal * 30, bullet_normal * bulletSpeed)
+		state.shootCooldown = shootCooldownTime
 	}
 }
 
