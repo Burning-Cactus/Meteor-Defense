@@ -47,7 +47,20 @@ draw_tower_selector :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hi
 	inner_corner := start+ size/10
 	rl.DrawText(rl.TextFormat("%i", idx+1), i32(inner_corner.x), i32(inner_corner.y), 10, modulate(.PRIMARY))
 
-	return is_box_clicked(start, end, cursor) || get_number_selection(len(selectable_towers)-1) == idx
+	// HACK: this is a fix for a bug added in cf44467 to make them clickable again.
+	// A mouse click feeds the same input path the number keys use, so build-mode
+	// toggling stays centralized in game_loop (via input.build_mode).
+	if is_box_clicked(start, end, cursor) {
+		if !state.buildMode {
+			input.build_mode = true
+			play_sfx("ui_click")
+		} else if idx == input.select_slot {
+			input.build_mode = true
+			play_sfx("ui_back")
+		} else do play_sfx("ui_click")
+		input.select_slot = idx
+	}
+	return get_number_selection(len(selectable_towers)-1) == idx
 }
 
 update_build_mode :: proc(state: ^GameState) {
