@@ -52,6 +52,7 @@ get_frustum :: proc() -> (start: Vec2, end: Vec2) {
 
 FrameInput :: struct {
 	fire:bool,
+	firing:bool,
 	zoom:f32,
 	pan:Vec2,
 	move:Vec2,
@@ -95,18 +96,29 @@ clamped_input :: proc(raw:Vec2) -> Vec2 {
 	return raw
 }
 
+prev_firing:bool
 poll_input :: proc() {
 	connected_gamepads := get_every_connected_gampad()
 
-	input.fire = rl.IsMouseButtonPressed(.LEFT)
-	for i in connected_gamepads do input.fire |= rl.IsGamepadButtonPressed(i, .RIGHT_FACE_DOWN)
-	input.fire |= rl.IsMouseButtonPressed(.RIGHT)
+	input.firing = rl.IsMouseButtonDown(.LEFT)
+	for i in connected_gamepads do input.firing |= rl.GetGamepadAxisMovement(i, .RIGHT_TRIGGER) > 0.2
+	input.fire = input.firing && !prev_firing
+	prev_firing = input.firing
 
 	zoom_delta := rl.GetMouseWheelMove()
-	for i in connected_gamepads do zoom_delta -= rl.GetGamepadAxisMovement(i, .LEFT_TRIGGER) * 0.03
-	for i in connected_gamepads do zoom_delta += rl.GetGamepadAxisMovement(i, .RIGHT_TRIGGER) * 0.03
 	input.zoom *= math.exp(0.2 * zoom_delta) // logarithmic zoom
-	input.zoom = clamp(input.zoom, 0.05, 1)
+
+	ZOOM_OUT_MAX :: 0.05
+	ZOOM_IN_MAX :: 1
+	input.zoom = clamp(input.zoom, ZOOM_OUT_MAX, ZOOM_IN_MAX) //TODO: perhaps instead of clamping, zoom could be between 0 and 1 and the actual zoom values are left up to interpretation
+	for i in connected_gamepads {
+		for b in ([]rl.GamepadButton{.RIGHT_FACE_LEFT, .RIGHT_FACE_UP}) {
+			if rl.IsGamepadButtonPressed(i, b) {
+				if input.zoom > 0.2 do input.zoom = ZOOM_OUT_MAX
+				else do input.zoom = 0.3
+			}
+		}
+	}
 
 	input.pan = rl.GetMouseDelta() if rl.IsMouseButtonDown(.MIDDLE) else {}
 
@@ -115,6 +127,12 @@ poll_input :: proc() {
 	if rl.IsKeyDown(.D) do input.move.x += 1
 	if rl.IsKeyDown(.W) do input.move.y -= 1
 	if rl.IsKeyDown(.S) do input.move.y += 1
+	for i in connected_gamepads {
+		if rl.IsGamepadButtonDown(i, .LEFT_FACE_LEFT) do input.move.x -= 1
+		if rl.IsGamepadButtonDown(i, .LEFT_FACE_RIGHT) do input.move.x += 1
+		if rl.IsGamepadButtonDown(i, .LEFT_FACE_UP) do input.move.y -= 1
+		if rl.IsGamepadButtonDown(i, .LEFT_FACE_DOWN) do input.move.y += 1
+	}
 	for i in connected_gamepads do input.move += build_input_vec(i, .LEFT_X, .LEFT_Y)
 	input.move = clamped_input(input.move)
 
@@ -235,7 +253,9 @@ handle_combined_camera :: proc(delta: f32) {
 	center:= screen_vec()/2
 	scale := min(screen_vec().x, screen_vec().y) /2
 
-	pan := (rl.GetMousePosition() - center) / 8
+
+	lookage := rl.GetMousePosition() - center + input.aim * scale * 2
+	pan := lookage / 8
 	zoom_factor :: 0.3 // between 0 and 1 exclusive. 0 is no zoom, 1 is infinite zoom
 	zoom := (1 - dist(pan) / scale * zoom_factor)
 	handle_camera_zoom(delta, 0.2, center, zoom)
@@ -363,6 +383,7 @@ GameState :: struct {
 	cursor:            Vec2,
 	scale_hint:        f32,
 	difficulty_scale:  f32,
+	shootCooldown:     f32,
 }
 
 state: GameState
@@ -590,7 +611,7 @@ init :: proc() {
 	}
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
 	//rl.SetTargetFPS(10)
-	rl.InitWindow(1280, 720, "Meteor Defense")
+	rl.InitWindow(1280, 720, "Awasteroids")
 	// Disable quiting with esc key.
 	rl.SetExitKey(.KEY_NULL)
 
