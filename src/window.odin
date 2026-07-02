@@ -203,6 +203,7 @@ handle_camera_zoom :: proc(delta:f32, seconds:f32=0, offset:Vec2={}, tweak:f32=1
 }
 
 handle_freecam :: proc(delta: f32) {
+	set_cursor_captured(false)
 	camera.target -=  input.pan * (1.0 / camera.zoom)
 	handle_camera_zoom(delta, 0.2, rl.GetMousePosition())
 }
@@ -231,6 +232,18 @@ handle_hybrid_camera :: proc(delta: f32) {
 
 	camera.target = state.player.pos + pan / camera.zoom
 	soft_cursor_pos = cursor_portion + center
+}
+
+// slight pan and zoom while aiming
+handle_combined_camera :: proc(delta: f32) {
+	center:= screen_vec()/2
+	scale := min(screen_vec().x, screen_vec().y) /2
+
+	pan := (rl.GetMousePosition() - center) / 8
+	zoom_factor :: 0.3 // between 0 and 1 exclusive. 0 is no zoom, 1 is infinite zoom
+	zoom := (1 - dist(pan) / scale * zoom_factor)
+	handle_camera_zoom(delta, 0.2, center, zoom)
+	camera.target = state.player.pos + pan / camera.zoom
 }
 
 paused: bool
@@ -391,7 +404,6 @@ reset_game :: proc() {
 	camera.offset = Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / 2
 	camera.target = state.player.pos
 	camera.zoom = BASE_CAMERA_ZOOM * screen_size_ratio()
-	input.zoom = 1 // absolute zoom factor; 1 == base zoom
 }
 
 draw_radar :: proc() {
@@ -509,7 +521,7 @@ update :: proc() {
 					play_sfx("victory")
 				}
 			}
-			handle_hybrid_camera(delta)
+			handle_combined_camera(delta)
 		} else {
 			set_cursor_captured(false)
 			handle_freecam(delta)
