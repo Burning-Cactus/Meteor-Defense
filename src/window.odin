@@ -7,17 +7,11 @@ import rl "vendor:raylib"
 
 import "core:fmt"
 
-_LOGO_PNG :: #load("../assets/logo.png")
-logo_texture: rl.Texture2D
-
-TRANSITION_SPEED: f32 : 1 / 0.3 //seconds
-
 performance_test :: false // Disable vsync and display fps
 
-run := true
-
+logo_texture: rl.Texture2D
 camera: rl.Camera2D
-prev_window_size: Vec2
+run := true
 
 // --- Window Size Utils ---
 
@@ -33,6 +27,7 @@ screen_size_ratio :: proc() -> f32 {
 
 // --- Camera Utils ---
 
+prev_window_size: Vec2
 pan_to_new_window_size :: proc() {
 	curr_size := Vec2{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())}
 	old_metric := (prev_window_size.x + prev_window_size.y) / 2
@@ -102,6 +97,7 @@ clamped_input :: proc(raw:Vec2) -> Vec2 {
 
 poll_input :: proc() {
 	connected_gamepads := get_every_connected_gampad()
+
 	input.fire = rl.IsMouseButtonPressed(.LEFT)
 	for i in connected_gamepads do input.fire |= rl.IsGamepadButtonPressed(i, .RIGHT_FACE_DOWN)
 	input.fire |= rl.IsMouseButtonPressed(.RIGHT)
@@ -110,7 +106,7 @@ poll_input :: proc() {
 	for i in connected_gamepads do zoom_delta -= rl.GetGamepadAxisMovement(i, .LEFT_TRIGGER) * 0.03
 	for i in connected_gamepads do zoom_delta += rl.GetGamepadAxisMovement(i, .RIGHT_TRIGGER) * 0.03
 	input.zoom *= math.exp(0.2 * zoom_delta) // logarithmic zoom
-	input.zoom = clamp(input.zoom, 0.125, 2)
+	input.zoom = clamp(input.zoom, 0.05, 1)
 
 	input.pan = rl.GetMouseDelta() if rl.IsMouseButtonDown(.MIDDLE) else {}
 
@@ -319,6 +315,7 @@ set_screen :: proc(target: Screen) {
 	currentScreen = target
 }
 
+TRANSITION_SPEED: f32 : 1 / 0.3//seconds
 update_transition :: proc(delta: f32) {
 	switch _transition_phase {
 	case .Idle:
@@ -380,7 +377,6 @@ reset_game :: proc() {
 	}
 	state = {
 		player = Entity {
-			label = "jelly",
 			pos = {200, -100},
 			shape = Rect{32},
 			alive = true,
@@ -388,7 +384,6 @@ reset_game :: proc() {
 			draw = draw_player,
 		},
 		comet = Entity {
-			label = "comet",
 			hp = 5.0,
 			alive = true,
 			max_hp = 5.0,
@@ -546,7 +541,6 @@ update :: proc() {
 			x, _ := screen_size()
 			rl.DrawText(rl.TextFormat("$%d", state.money), x - 240, 40, 20, rl.WHITE)
 		}
-		//if cursor_captured do draw_cursor()
 	case .Draw:
 		set_cursor_captured(false)
 		handle_freecam(delta)
@@ -608,6 +602,7 @@ init :: proc() {
 	init_meteor_polygons()
 	init_shader()
 
+	_LOGO_PNG :: #load("../assets/logo.png")
 	img := rl.LoadImageFromMemory(".png", raw_data(_LOGO_PNG), i32(len(_LOGO_PNG)))
 	logo_texture = rl.LoadTextureFromImage(img)
 	rl.UnloadImage(img)
