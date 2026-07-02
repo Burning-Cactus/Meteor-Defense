@@ -470,6 +470,7 @@ draw_title_screen :: proc(delta: f32) {
 	if draw_button(draw_start + padv, btn_size, rl.GetMousePosition(), "commence") {
 		play_sfx("game_start")
 		set_screen(.Game)
+		state.shootCooldown = 1 //HACK: prevent player from shooting at the button
 	}
 	draw_start.y += btn_size.y + padv.y *2
 	draw_settings(draw_start, .TOP_LEFT)

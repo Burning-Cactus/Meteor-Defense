@@ -64,7 +64,6 @@ draw_tower_selector :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hi
 }
 
 update_build_mode :: proc(state: ^GameState) {
-	//NOTE: input processing should only be done in frame loop
 	point, normal := find_intersection_point_on_entity(state.cursor, state.comet)
 	current_pending_tower.pos = point
 	current_pending_tower.rot = vec_angle(normal)
@@ -113,6 +112,7 @@ draw_build_mode :: proc(state: ^GameState) {
 			spawn(&state.towers, current_pending_tower.pos, current_pending_tower)
 			current_pending_tower = {}
 			state.buildMode = false
+			state.shootCooldown = 0.1 //HACK: prevent player from shooting at the tower
 			play_sfx("place_tower")
 		} else do play_sfx("ui_error")
 	}
