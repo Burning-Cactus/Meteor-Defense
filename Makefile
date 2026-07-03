@@ -16,19 +16,19 @@ ${CONSIDER_CONTENTS}: $$(call contents,$$@)
 build/desktop/game: src build/desktop/assets
 	odin build $</main_desktop ${ODINFLAGS} -out:$@
 
-web:
+build/web:
 	./build_web.sh
 
-web-debug:
-	./build_web.sh -d
+build/web.zip: build/web
+	zip -r --junk-paths $@ $</*
 
 run: build/desktop/game
 	$<
 
-serve: web
+serve: build/web
 	./build_web.sh -r
 
 clean:
 	rm -rf build/
 
-.PHONY: web web-debug run serve clean
+.PHONY: web-debug run serve clean

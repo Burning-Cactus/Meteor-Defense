@@ -28,7 +28,6 @@ Shape :: union {
 
 Entity :: struct {
 	id:         u64,
-	label:      string,
 	pos:        Vec2,
 	velocity:   Vec2,
 	rot:        f32,
