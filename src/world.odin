@@ -3,7 +3,6 @@ package game
 
 import "core:fmt"
 import "core:math"
-import rl "vendor:raylib"
 
 cursor_entity :: proc() -> Entity {
 	return Entity{pos = state.cursor, alive = true, shape = Circle{32}}
@@ -125,7 +124,6 @@ draw_background :: proc() {
 		brightness := 40 * camera.zoom / s.distance
 		if brightness > .1 do draw_dot(s.pos, state.scale_hint, .PRIMARY, brightness)
 	}
-
 }
 
 // --- Player ---
@@ -135,25 +133,21 @@ move_toward :: proc(f, targ, delta: f32) -> f32 {
 	if abs(diff) <= delta do return targ
 	return f + math.sign(diff) * delta
 }
-handle_input :: proc(delta: f32) {
+update_player :: proc(delta: f32) {
 	player := &state.player
 
 	playerSpeed :: 100
 	playerAccel :: 300
 
-	target_x: f32
-	target_y: f32
-	if rl.IsKeyDown(.A) do target_x -= 1
-	if rl.IsKeyDown(.D) do target_x += 1
-	if rl.IsKeyDown(.W) do target_y -= 1
-	if rl.IsKeyDown(.S) do target_y += 1
-
-	player.velocity.x = move_toward(player.velocity.x, target_x * playerSpeed, playerAccel * delta)
-	player.velocity.y = move_toward(player.velocity.y, target_y * playerSpeed, playerAccel * delta)
-	if !state.buildMode && rl.IsMouseButtonPressed(.LEFT) && try_claim_click() {
+	player.velocity.x = move_toward(player.velocity.x, input.move.x * playerSpeed, playerAccel * delta)
+	player.velocity.y = move_toward(player.velocity.y, input.move.y * playerSpeed, playerAccel * delta)
+	state.shootCooldown = max(0, state.shootCooldown - delta)
+	if !state.buildMode && ((input.firing && state.shootCooldown <= 0) || (input.fire && try_claim_click())) {
+		shootCooldownTime :: 0.2
 		bulletSpeed :: 500
-		bullet_normal := unit_vector(player.rot)
+		bullet_normal := normalize(state.cursor - player.pos)
 		spawn_bullet(&state, player.pos + bullet_normal * 30, bullet_normal * bulletSpeed)
+		state.shootCooldown = shootCooldownTime
 	}
 }
 
@@ -161,6 +155,7 @@ handle_input :: proc(delta: f32) {
 // --- Main ---
 
 game_loop :: proc(delta: f32) {
+	if input.build_mode do state.buildMode = !state.buildMode
 	if state.buildMode {
 		update_build_mode(&state)
 	}
@@ -171,10 +166,9 @@ game_loop :: proc(delta: f32) {
 	state.comet.rot += 0.02 * delta
 
 	// Handle entities
-	handle_input(delta)
+	update_player(delta)
 	player := &state.player
 	player.pos += player.velocity * delta
-	player.rot = angle_facing(player.pos, state.cursor)
 
 	meteorCount := len(state.meteors)
 	projectileCount := len(state.projectiles)

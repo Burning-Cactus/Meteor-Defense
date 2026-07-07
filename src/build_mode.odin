@@ -12,16 +12,8 @@ draw_tower_toolbar ::proc() {
 	w,h := f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())
 	result := draw_toolbar({w/2, h-min(30, h/10)}, .BOTTOM, .RIGHT, len(selectable_towers), draw_tower_selector)
 	if result != -1 {
-		if result != selected_tower_idx || !state.buildMode {
-			selected_tower_idx = result
-			current_tower_type = selectable_towers[result]
-			state.buildMode = true
-			play_sfx("ui_click")
-		} else {
-			selected_tower_idx = -1
-			state.buildMode = false
-			play_sfx("ui_back")
-		}
+		selected_tower_idx = result
+		current_tower_type = selectable_towers[result]
 	}
 }
 
@@ -55,11 +47,23 @@ draw_tower_selector :: proc(start:Vec2, end:Vec2, idx:int, cursor:Vec2, scale_hi
 	inner_corner := start+ size/10
 	rl.DrawText(rl.TextFormat("%i", idx+1), i32(inner_corner.x), i32(inner_corner.y), 10, modulate(.PRIMARY))
 
-	return is_box_clicked(start, end, cursor) || get_number_pressed() == idx
+	// HACK: this is a fix for a bug added in cf44467 to make them clickable again.
+	// A mouse click feeds the same input path the number keys use, so build-mode
+	// toggling stays centralized in game_loop (via input.build_mode).
+	if is_box_clicked(start, end, cursor) {
+		if !state.buildMode {
+			input.build_mode = true
+			play_sfx("ui_click")
+		} else if idx == input.select_slot {
+			input.build_mode = true
+			play_sfx("ui_back")
+		} else do play_sfx("ui_click")
+		input.select_slot = idx
+	}
+	return get_number_selection(len(selectable_towers)-1) == idx
 }
 
 update_build_mode :: proc(state: ^GameState) {
-	//NOTE: input processing should only be done in frame loop
 	point, normal := find_intersection_point_on_entity(state.cursor, state.comet)
 	current_pending_tower.pos = point
 	current_pending_tower.rot = vec_angle(normal)
@@ -100,7 +104,7 @@ draw_build_mode :: proc(state: ^GameState) {
 
 	draw_aim_arc(&current_pending_tower, current_pending_tower.col, state.scale_hint)
 	draw_entity(&current_pending_tower.entity, state)
-	if rl.IsMouseButtonPressed(.LEFT) && try_claim_click() {
+	if input.fire && try_claim_click() {
 		if can_build {
 			state.money -= current_pending_tower.value
 			current_pending_tower.col = .PRIMARY
@@ -108,6 +112,7 @@ draw_build_mode :: proc(state: ^GameState) {
 			spawn(&state.towers, current_pending_tower.pos, current_pending_tower)
 			current_pending_tower = {}
 			state.buildMode = false
+			state.shootCooldown = 0.1 //HACK: prevent player from shooting at the tower
 			play_sfx("place_tower")
 		} else do play_sfx("ui_error")
 	}
