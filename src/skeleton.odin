@@ -123,7 +123,7 @@ draw_on_bone :: proc(b: Bone, shapes: []Drawshape, scale_hint:f32=1.0, col:Theme
 	}
 }
 
-draw_on_bone_pro :: proc(b: Bone, shapes: []DrawshapePro, scale_hint: f32 = 1.0) {
+draw_on_bone_pro :: proc(b: Bone, shapes: []DrawshapeEx, scale_hint: f32 = 1.0) {
 	for s in shapes {
 		ws := s
 		ws.start = bone_to_world(b, s.start)

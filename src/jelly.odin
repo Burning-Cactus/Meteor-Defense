@@ -131,7 +131,7 @@ player_pose_from_velocity :: proc(vel: Vec2) -> Pose {
 	return pose
 }
 
-jelly_bone_shapes: [10][]DrawshapePro
+jelly_bone_shapes: [10][]DrawshapeEx
 jelly_loaded:      bool
 
 load_jelly_shapes :: proc() {
@@ -163,15 +163,15 @@ load_jelly_shapes :: proc() {
 		if bone_idx < 0 do continue
 
 		ref_bone := ref_bones[bone_idx]
-		shapes   := make([dynamic]DrawshapePro)
+		shapes   := make([dynamic]DrawshapeEx)
 		for ptr in sub.contents {
-			pro: DrawshapePro
+			pro: DrawshapeEx
 			switch v in ptr^ {
 			case Drawshape:       pro = {drawshape = v, col = .PRIMARY, brightness = 1.0}
-			case DrawshapePro:    pro = v
+			case DrawshapeEx:    pro = v
 			case ^DrawshapeGroup: continue
 			}
-			append(&shapes, DrawshapePro{
+			append(&shapes, DrawshapeEx{
 				drawshape  = {pro.type, world_to_bone(ref_bone, pro.start), world_to_bone(ref_bone, pro.end)},
 				col        = pro.col,
 				brightness = pro.brightness,

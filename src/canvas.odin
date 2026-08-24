@@ -38,7 +38,7 @@ shape_handle_sqrdist :: proc(d: Drawable, point: Vec2, threshold: f32) -> (f32, 
 			if center_sqrdist < perimeter_sqrdist do return center_sqrdist, .BOTH
 			return perimeter_sqrdist, .END
 		}
-	case DrawshapePro:
+	case DrawshapeEx:
 		return shape_handle_sqrdist(v.drawshape, point, threshold)
 	case ^DrawshapeGroup:
 		best := thr_sqr + 1
@@ -109,7 +109,7 @@ drawable_base_shape :: proc(d: Drawable) -> (s: Drawshape, ok: bool) {
 	switch v in d {
 	case Drawshape:
 		return v, true
-	case DrawshapePro:
+	case DrawshapeEx:
 		return v.drawshape, true
 	case ^DrawshapeGroup:
 		return {}, false
@@ -156,16 +156,16 @@ handle_highlighted_shape :: proc(ref: ShapeRef, handle: HandleMode) {
 
 set_drawable_color :: proc(d: ^Drawable, col: ThemeColor) {
 	switch &v in d^ {
-	case DrawshapePro:    v.col = col
-	case Drawshape:       d^ = DrawshapePro{drawshape = v, col = col, brightness = 1.0}
+	case DrawshapeEx:    v.col = col
+	case Drawshape:       d^ = DrawshapeEx{drawshape = v, col = col, brightness = 1.0}
 	case ^DrawshapeGroup:
 	}
 }
 
 set_drawable_brightness :: proc(d: ^Drawable, b: f32) {
 	switch &v in d^ {
-	case DrawshapePro:    v.brightness = b
-	case Drawshape:       d^ = DrawshapePro{drawshape = v, col = .PRIMARY, brightness = b}
+	case DrawshapeEx:    v.brightness = b
+	case Drawshape:       d^ = DrawshapeEx{drawshape = v, col = .PRIMARY, brightness = b}
 	case ^DrawshapeGroup:
 	}
 }
@@ -193,8 +193,8 @@ move_drawable :: proc(d: ^Drawable, delta: Vec2, move_whole: bool, handle: Handl
 		if move_whole || handle == .START do s.start += delta
 		if move_whole || handle == .END do s.end += delta
 		d^ = s
-	case DrawshapePro:
-		p := d^.(DrawshapePro)
+	case DrawshapeEx:
+		p := d^.(DrawshapeEx)
 		if move_whole || handle == .START do p.start += delta
 		if move_whole || handle == .END do p.end += delta
 		d^ = p
@@ -296,7 +296,7 @@ draw_group_on_bone :: proc(group: ^DrawshapeGroup, ref_bone: Bone, curr_bone: Bo
 			ws.start = bone_to_world(curr_bone, world_to_bone(ref_bone, v.start))
 			ws.end   = bone_to_world(curr_bone, world_to_bone(ref_bone, v.end))
 			draw_shape(ws, scale_hint)
-		case DrawshapePro:
+		case DrawshapeEx:
 			ws := v
 			ws.start = bone_to_world(curr_bone, world_to_bone(ref_bone, v.start))
 			ws.end   = bone_to_world(curr_bone, world_to_bone(ref_bone, v.end))
@@ -346,7 +346,7 @@ CanvasTool :: struct {
 	drag_handler: proc(d: ^Drag) -> Drawable,
 }
 shape_tool_drag_handler :: proc(d: ^Drag, shape: Drawshape_Type) -> Drawable {
-	out := DrawshapePro {
+	out := DrawshapeEx {
 		drawshape  = {shape, d.start, d.end},
 		col        = selected_color,
 		brightness = draw_brightness,
@@ -369,7 +369,7 @@ collect_shapes_in_box :: proc(group: ^DrawshapeGroup, a: Vec2, b: Vec2, result: 
 		switch v in item^ {
 		case ^DrawshapeGroup: collect_shapes_in_box(v, a, b, result)
 		case Drawshape:       if shape_in_box(v,           a, b) do append(result, ShapeRef{group, i})
-		case DrawshapePro:    if shape_in_box(v.drawshape, a, b) do append(result, ShapeRef{group, i})
+		case DrawshapeEx:    if shape_in_box(v.drawshape, a, b) do append(result, ShapeRef{group, i})
 		}
 	}
 }

@@ -36,7 +36,7 @@ drawable_to_json_value :: proc(d: Drawable, allocator := context.allocator) -> j
 		obj["start"]      = vec2_to_json_value(v.start)
 		obj["type"]       = json.String(reflect.enum_string(v.type))
 		return obj
-	case DrawshapePro:
+	case DrawshapeEx:
 		col_name, _ := reflect.enum_name_from_value(v.col)
 		obj := make(json.Object)
 		obj["brightness"] = json.Float(f64(v.brightness))
@@ -77,7 +77,7 @@ drawable_from_json_value :: proc(v: json.Value, allocator := context.allocator) 
 		return s, true
 
 	case "shape_pro":
-		p: DrawshapePro
+		p: DrawshapeEx
 		type_str  := obj["type"].(json.String) or_return
 		col_str   := obj["col"].(json.String) or_return
 		p.type       = reflect.enum_from_name(Drawshape_Type, type_str) or_return
@@ -130,7 +130,7 @@ test_drawable_json :: proc() {
 	inner_dot := new(Drawable)
 	inner_dot^ = Drawshape{type = .DOT, end = {1, 2}}
 	inner_line := new(Drawable)
-	inner_line^ = DrawshapePro{
+	inner_line^ = DrawshapeEx{
 		drawshape  = {type = .LINE, start = {0, 0}, end = {10, 10}},
 		col        = .BLUE,
 		brightness = 1.0,
@@ -146,7 +146,7 @@ test_drawable_json :: proc() {
 		Drawshape{type = .DOT, end = {5, 5}},
 		Drawshape{type = .LINE, start = {10, 20}, end = {30, 40}},
 		Drawshape{type = .CIRCLE, start = {0, 0}, end = {50, 0}},
-		DrawshapePro{
+		DrawshapeEx{
 			drawshape  = {type = .CIRCLE, start = {0, 0}, end = {50, 50}},
 			col        = .RED,
 			brightness = 0.8,

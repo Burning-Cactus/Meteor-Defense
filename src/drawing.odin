@@ -14,7 +14,7 @@ Drawshape :: struct {
 	start : Vec2,
 	end : Vec2,
 }
-DrawshapePro :: struct { //dumb naming scheme but raylib uses it so why not
+DrawshapeEx :: struct { //dumb naming scheme but raylib uses it so why not
 	using drawshape: Drawshape,
 	col: ThemeColor,
 	brightness: f32,
@@ -23,7 +23,7 @@ DrawshapeGroup :: struct {
 	name:     string,
 	contents: [dynamic]^Drawable,
 }
-Drawable :: union{ Drawshape, DrawshapePro, ^DrawshapeGroup }
+Drawable :: union{ Drawshape, DrawshapeEx, ^DrawshapeGroup }
 
 ThemeColor :: enum {
 	PRIMARY,
@@ -167,8 +167,8 @@ transformed_drawable :: proc(d: Drawable, t: Transform2D, allocator := context.t
 	switch _ in d {
 	case Drawshape:
 		return transformed_drawshape(d.(Drawshape), t)
-	case DrawshapePro:
-		p := d.(DrawshapePro)
+	case DrawshapeEx:
+		p := d.(DrawshapeEx)
 		p.drawshape = transformed_drawshape(p.drawshape, t)
 		return p
 	case ^DrawshapeGroup:
@@ -252,7 +252,7 @@ draw_shape_base :: proc(s: Drawshape, scale_hint:f32, col:ThemeColor=.PRIMARY, b
 	}
 }
 
-draw_shape_pro :: proc(s: DrawshapePro, scale_hint:f32) {
+draw_shape_pro :: proc(s: DrawshapeEx, scale_hint:f32) {
 	draw_shape_base(s.drawshape, scale_hint, s.col, s.brightness)
 }
 
@@ -266,8 +266,8 @@ draw_shape :: proc(s:Drawable, scale_hint: f32 = 1.0, col: ThemeColor = .PRIMARY
 	switch _ in s {
 	case Drawshape:
 		draw_shape_base(s.(Drawshape), scale_hint, col, brightness)
-	case DrawshapePro:
-		draw_shape_pro(s.(DrawshapePro), scale_hint)
+	case DrawshapeEx:
+		draw_shape_pro(s.(DrawshapeEx), scale_hint)
 	case ^DrawshapeGroup:
 		draw_shape_group(s.(^DrawshapeGroup)^, scale_hint, col, brightness)
 	}
