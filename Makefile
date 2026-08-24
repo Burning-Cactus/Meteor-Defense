@@ -26,7 +26,7 @@ run: build/desktop/game
 	$<
 
 serve: build/web
-	./build_web.sh -r
+	darkhttpd $<
 
 clean:
 	rm -rf build/
